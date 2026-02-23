@@ -16,7 +16,7 @@ const isActive = (path) => {
 
 <template>
   <!-- Mobile Bottom Navigation -->
-  <nav class="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
+  <nav class="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 nav-safe-bottom">
     <div class="flex justify-around items-center h-16 px-2">
       <router-link
         v-for="item in navItems"
@@ -49,3 +49,10 @@ const isActive = (path) => {
     </div>
   </nav>
 </template>
+
+<style scoped>
+/* Adds env(safe-area-inset-bottom) so the nav clears iPhone home indicator */
+.nav-safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+</style>

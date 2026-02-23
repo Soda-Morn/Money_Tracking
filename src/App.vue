@@ -13,7 +13,7 @@ import MobileHeader from './components/layout/MobileHeader.vue'
     <MobileHeader />
 
     <!-- Main Content -->
-    <main class="lg:pl-64 pb-20 lg:pb-0">
+    <main class="lg:pl-64 lg:pb-0 main-mobile-pb">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <router-view v-slot="{ Component }">
           <transition name="page" mode="out-in">
@@ -29,6 +29,17 @@ import MobileHeader from './components/layout/MobileHeader.vue'
 </template>
 
 <style scoped>
+/* pb-20 (80px) + safe-area so content clears the bottom nav on all phones */
+.main-mobile-pb {
+  padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 1024px) {
+  .main-mobile-pb {
+    padding-bottom: 0;
+  }
+}
+
 .page-enter-active,
 .page-leave-active {
   transition: opacity 0.2s ease, transform 0.2s ease;

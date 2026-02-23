@@ -46,14 +46,15 @@ const handleDelete = (id) => {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-4 lg:space-y-6">
     <!-- Page Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-      <div>
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+      <!-- Title: hidden on mobile since MobileHeader already shows it -->
+      <div class="hidden lg:block">
         <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p class="text-gray-500 mt-1">Track your income and expenses</p>
+        <p class="text-sm text-gray-500 mt-1">Track your income and expenses</p>
       </div>
-      <BaseButton @click="showAddModal = true">
+      <BaseButton class="w-full lg:w-auto" @click="showAddModal = true">
         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
         </svg>

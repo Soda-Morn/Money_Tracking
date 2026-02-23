@@ -21,7 +21,7 @@ const { formatCurrency } = useFormat()
 </script>
 
 <template>
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:gap-4">
     <!-- Total Balance -->
     <BaseCard class="relative overflow-hidden">
       <div class="flex items-center justify-between">

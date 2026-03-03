@@ -1,9 +1,11 @@
 <script setup>
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import BaseButton from '../ui/BaseButton.vue'
 import BaseInput from '../ui/BaseInput.vue'
 
 const emit = defineEmits(['submit', 'cancel'])
+const { t } = useI18n()
 
 const props = defineProps({
   initialData: {
@@ -50,7 +52,7 @@ const handleSubmit = () => {
   <form @submit.prevent="handleSubmit" class="space-y-4">
     <!-- Icon Selection -->
     <div class="space-y-2">
-      <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Icon</label>
+      <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('icon_label') }}</label>
 
       <!-- Preset icons grid (scrollable) -->
       <div class="flex flex-wrap gap-2 max-h-36 overflow-y-auto p-1 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
@@ -72,7 +74,7 @@ const handleSubmit = () => {
 
       <!-- Custom emoji input -->
       <div class="flex items-center gap-3">
-        <span class="text-sm text-gray-500 dark:text-gray-400">Or type custom icon:</span>
+        <span class="text-sm text-gray-500 dark:text-gray-400">{{ t('or_type_custom_icon') }}</span>
         <input
           v-model="form.icon"
           maxlength="2"
@@ -85,7 +87,7 @@ const handleSubmit = () => {
     <!-- Name -->
     <BaseInput
       v-model="form.name"
-      label="Goal Name"
+      :label="t('goal_name')"
       placeholder="e.g., New Car, Vacation, Emergency Fund"
       :required="true"
     />
@@ -94,7 +96,7 @@ const handleSubmit = () => {
     <BaseInput
       v-model="form.targetAmount"
       type="number"
-      label="Target Amount"
+      :label="t('target_amount')"
       placeholder="0.00"
       :required="true"
     />
@@ -104,7 +106,7 @@ const handleSubmit = () => {
       v-if="!isEditing"
       v-model="form.currentAmount"
       type="number"
-      label="Initial Amount (Optional)"
+      :label="t('initial_amount_optional')"
       placeholder="0.00"
     />
 
@@ -112,16 +114,16 @@ const handleSubmit = () => {
     <BaseInput
       v-model="form.deadline"
       type="date"
-      label="Target Date (Optional)"
+      :label="t('target_date_optional')"
     />
 
     <!-- Actions -->
     <div class="flex gap-3 pt-2">
       <BaseButton type="button" variant="secondary" @click="emit('cancel')" full-width>
-        Cancel
+        {{ t('cancel') }}
       </BaseButton>
       <BaseButton type="submit" :disabled="!isValid" full-width>
-        {{ isEditing ? 'Update' : 'Create' }} Goal
+        {{ isEditing ? t('update') : t('create') }} {{ t('goal') }}
       </BaseButton>
     </div>
   </form>

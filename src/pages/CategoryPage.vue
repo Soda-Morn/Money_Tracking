@@ -2,10 +2,13 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCategories } from '../composables/useCategories'
+import { useI18n } from 'vue-i18n'
 import BaseCard from '../components/ui/BaseCard.vue'
 import BaseButton from '../components/ui/BaseButton.vue'
 import BaseInput from '../components/ui/BaseInput.vue'
 import BaseModal from '../components/ui/BaseModal.vue'
+
+const { t } = useI18n()
 
 const router = useRouter()
 const { expenseCategories, incomeCategories, addCategory, deleteCategory } = useCategories()
@@ -74,8 +77,8 @@ const handleDelete = async (id) => {
         </svg>
       </button>
       <div>
-        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Categories</h1>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Manage your transaction categories</p>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ t('categories') }}</h1>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{{ t('manage_transaction_categories') }}</p>
       </div>
     </div>
 
@@ -95,7 +98,7 @@ const handleDelete = async (id) => {
             ]"
             @click="activeTab = tab; expandedCategory = null"
           >
-            {{ tab === 'expense' ? '💸 Expense' : '💵 Income' }}
+            {{ tab === 'expense' ? '💸 ' + t('expense') : '💵 ' + t('income') }}
           </button>
         </div>
 
@@ -107,7 +110,7 @@ const handleDelete = async (id) => {
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
-          Add
+          {{ t('add') }}
         </button>
       </div>
 
@@ -148,7 +151,7 @@ const handleDelete = async (id) => {
                     ? 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400'
                     : 'bg-blue-100 dark:bg-blue-800 text-blue-600 dark:text-blue-300'"
                 >
-                  {{ cat.isDefault ? 'Default' : 'Custom' }}
+                  {{ cat.isDefault ? t('default') : t('custom') }}
                 </span>
               </div>
             </div>
@@ -162,9 +165,9 @@ const handleDelete = async (id) => {
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
               </svg>
-              Delete
+              {{ t('delete') }}
             </button>
-            <span v-else class="text-xs text-gray-400 dark:text-gray-500 shrink-0">Cannot delete</span>
+            <span v-else class="text-xs text-gray-400 dark:text-gray-500 shrink-0">{{ t('cannot_delete') }}</span>
           </div>
 
         </div>
@@ -172,7 +175,7 @@ const handleDelete = async (id) => {
     </BaseCard>
 
     <!-- Add Category Modal -->
-    <BaseModal :show="showAddModal" title="Add Category" @close="showAddModal = false">
+    <BaseModal :show="showAddModal" :title="t('add_category')" @close="showAddModal = false">
       <div class="space-y-4">
         <!-- Expense / Income toggle -->
         <div class="grid grid-cols-2 gap-2 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
@@ -190,14 +193,14 @@ const handleDelete = async (id) => {
             ]"
             @click="addForm.type = type"
           >
-            {{ type === 'expense' ? '💸 Expense' : '💵 Income' }}
+            {{ type === 'expense' ? '💸 ' + t('expense') : '💵 ' + t('income') }}
           </button>
         </div>
 
         <!-- Name -->
         <BaseInput
           v-model="addForm.label"
-          label="Category Name"
+          :label="t('category_name')"
           placeholder="e.g., Gym, Pet Care, Side Income..."
           :required="true"
         />

@@ -1,14 +1,17 @@
 <script setup>
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 
 const route = useRoute()
+const { t } = useI18n()
 
-const navItems = [
-  { name: 'Home', path: '/', icon: 'home' },
-  { name: 'Savings', path: '/savings', icon: 'savings' },
-  { name: 'Analytics', path: '/analytics', icon: 'chart' },
-  { name: 'Settings', path: '/settings', icon: 'settings' }
-]
+const navItems = computed(() => [
+  { name: t('nav.home'), path: '/', icon: 'home' },
+  { name: t('nav.savings'), path: '/savings', icon: 'savings' },
+  { name: t('nav.analytics'), path: '/analytics', icon: 'chart' },
+  { name: t('nav.settings'), path: '/settings', icon: 'settings' }
+])
 
 const isActive = (path) => {
   return route.path === path

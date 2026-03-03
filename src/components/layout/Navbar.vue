@@ -2,17 +2,19 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '../../composables/useAuth'
+import { useI18n } from 'vue-i18n'
 
 const route = useRoute()
 const router = useRouter()
 const { currentUser, logout } = useAuth()
+const { t } = useI18n()
 
-const navItems = [
-  { name: 'Home', path: '/', icon: 'home' },
-  { name: 'Savings', path: '/savings', icon: 'savings' },
-  { name: 'Analytics', path: '/analytics', icon: 'chart' },
-  { name: 'Settings', path: '/settings', icon: 'settings' }
-]
+const navItems = computed(() => [
+  { name: t('nav.home'), path: '/', icon: 'home' },
+  { name: t('nav.savings'), path: '/savings', icon: 'savings' },
+  { name: t('nav.analytics'), path: '/analytics', icon: 'chart' },
+  { name: t('nav.settings'), path: '/settings', icon: 'settings' }
+])
 
 const isActive = (path) => route.path === path
 
@@ -79,7 +81,7 @@ const handleLogout = async () => {
         </div>
         <div class="min-w-0">
           <p class="text-sm font-semibold text-white truncate">
-            {{ currentUser?.displayName || 'User' }}
+            {{ currentUser?.displayName || t('user') }}
           </p>
           <p class="text-xs text-gray-500 truncate">{{ currentUser?.email }}</p>
         </div>
@@ -91,7 +93,7 @@ const handleLogout = async () => {
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
         </svg>
-        Sign Out
+        {{ t('sign_out') }}
       </button>
     </div>
   </aside>

@@ -1,5 +1,6 @@
 <script setup>
 import { useFormat } from '../../composables/useFormat'
+import { useI18n } from 'vue-i18n'
 import BaseCard from '../ui/BaseCard.vue'
 
 defineProps({
@@ -18,6 +19,7 @@ defineProps({
 })
 
 const { formatCurrency } = useFormat()
+const { t } = useI18n()
 </script>
 
 <template>
@@ -26,54 +28,54 @@ const { formatCurrency } = useFormat()
     <BaseCard class="relative overflow-hidden">
       <div class="flex items-center justify-between">
         <div>
-          <p class="text-sm text-gray-500 mb-1">Total Balance</p>
-          <p :class="['text-2xl font-bold', totalBalance >= 0 ? 'text-gray-900' : 'text-red-600']">
+          <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">{{ t('total_balance') }}</p>
+          <p :class="['text-2xl font-bold', totalBalance >= 0 ? 'text-gray-900 dark:text-white' : 'text-red-600']">
             {{ formatCurrency(totalBalance) }}
           </p>
         </div>
-        <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+        <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
           <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </div>
       </div>
-      <div class="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full -translate-y-1/2 translate-x-1/2 opacity-50"></div>
+      <div class="absolute top-0 right-0 w-32 h-32 bg-blue-50 dark:bg-blue-900/10 rounded-full -translate-y-1/2 translate-x-1/2 opacity-50"></div>
     </BaseCard>
 
     <!-- Total Income -->
     <BaseCard class="relative overflow-hidden">
       <div class="flex items-center justify-between">
         <div>
-          <p class="text-sm text-gray-500 mb-1">Total Income</p>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">{{ t('total_income') }}</p>
           <p class="text-2xl font-bold text-green-600">
             {{ formatCurrency(totalIncome) }}
           </p>
         </div>
-        <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+        <div class="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
           <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11l5-5m0 0l5 5m-5-5v12" />
           </svg>
         </div>
       </div>
-      <div class="absolute top-0 right-0 w-32 h-32 bg-green-50 rounded-full -translate-y-1/2 translate-x-1/2 opacity-50"></div>
+      <div class="absolute top-0 right-0 w-32 h-32 bg-green-50 dark:bg-green-900/10 rounded-full -translate-y-1/2 translate-x-1/2 opacity-50"></div>
     </BaseCard>
 
     <!-- Total Expense -->
     <BaseCard class="relative overflow-hidden">
       <div class="flex items-center justify-between">
         <div>
-          <p class="text-sm text-gray-500 mb-1">Total Expense</p>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">{{ t('total_expense') }}</p>
           <p class="text-2xl font-bold text-red-600">
             {{ formatCurrency(totalExpense) }}
           </p>
         </div>
-        <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+        <div class="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
           <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 13l-5 5m0 0l-5-5m5 5V6" />
           </svg>
         </div>
       </div>
-      <div class="absolute top-0 right-0 w-32 h-32 bg-red-50 rounded-full -translate-y-1/2 translate-x-1/2 opacity-50"></div>
+      <div class="absolute top-0 right-0 w-32 h-32 bg-red-50 dark:bg-red-900/10 rounded-full -translate-y-1/2 translate-x-1/2 opacity-50"></div>
     </BaseCard>
   </div>
 </template>

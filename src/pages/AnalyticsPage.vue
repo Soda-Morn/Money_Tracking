@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useTransactions } from '../composables/useTransactions'
 import { useFormat } from '../composables/useFormat'
 import ExpenseChart from '../components/charts/ExpenseChart.vue'
@@ -9,6 +10,7 @@ import BaseCard from '../components/ui/BaseCard.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
 
 const { transactions, totalIncome, totalExpense, totalBalance } = useTransactions()
+const { t } = useI18n()
 const { formatCurrency, getMonthName } = useFormat()
 
 const currentMonth = ref(new Date().getMonth())
@@ -96,15 +98,15 @@ const nextMonth = () => {
   <div class="space-y-6">
     <!-- Page Header -->
     <div>
-      <h1 class="text-2xl font-bold text-gray-900">Analytics</h1>
-      <p class="text-gray-500 mt-1">Visualize your financial data</p>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ t('analytics') }}</h1>
+      <p class="text-gray-500 dark:text-gray-400 mt-1">{{ t('visualize_data') }}</p>
     </div>
 
     <!-- Empty State -->
     <BaseCard v-if="transactions.length === 0">
       <EmptyState
-        title="No data to analyze"
-        description="Add some transactions to see your financial analytics"
+        :title="t('no_data_analytics_title')"
+        :description="t('no_data_analytics_desc')"
         icon="chart"
       />
     </BaseCard>
@@ -114,21 +116,21 @@ const nextMonth = () => {
       <BaseCard>
         <div class="flex items-center justify-between">
           <button
-            class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
             @click="prevMonth"
           >
-            <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <h2 class="text-lg font-semibold text-gray-900">
+          <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
             {{ getMonthName(currentMonth) }} {{ currentYear }}
           </h2>
           <button
-            class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
             @click="nextMonth"
           >
-            <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
             </svg>
           </button>
@@ -136,13 +138,13 @@ const nextMonth = () => {
 
         <!-- Monthly Summary -->
         <div class="grid grid-cols-2 gap-4 mt-4">
-          <div class="bg-green-50 rounded-lg p-4">
-            <p class="text-sm text-green-600 mb-1">Monthly Income</p>
-            <p class="text-xl font-bold text-green-700">{{ formatCurrency(monthlyIncome) }}</p>
+          <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+            <p class="text-sm text-green-600 dark:text-green-400 mb-1">{{ t('monthly_income') }}</p>
+            <p class="text-xl font-bold text-green-700 dark:text-green-400">{{ formatCurrency(monthlyIncome) }}</p>
           </div>
-          <div class="bg-red-50 rounded-lg p-4">
-            <p class="text-sm text-red-600 mb-1">Monthly Expense</p>
-            <p class="text-xl font-bold text-red-700">{{ formatCurrency(monthlyExpense) }}</p>
+          <div class="bg-red-50 dark:bg-red-900/20 rounded-lg p-4">
+            <p class="text-sm text-red-600 dark:text-red-400 mb-1">{{ t('monthly_expense') }}</p>
+            <p class="text-xl font-bold text-red-700 dark:text-red-400">{{ formatCurrency(monthlyExpense) }}</p>
           </div>
         </div>
       </BaseCard>
@@ -151,46 +153,46 @@ const nextMonth = () => {
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Expense Breakdown -->
         <BaseCard>
-          <h3 class="text-lg font-semibold text-gray-900 mb-4">Expense by Category</h3>
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">{{ t('expense_by_category') }}</h3>
           <ExpenseChart
             v-if="expenseTransactions.length > 0"
             :data="expenseTransactions"
             type="doughnut"
           />
-          <div v-else class="h-64 flex items-center justify-center text-gray-500">
-            No expense data
+          <div v-else class="h-64 flex items-center justify-center text-gray-500 dark:text-gray-400">
+            {{ t('no_expense_data') }}
           </div>
         </BaseCard>
 
         <!-- Income Breakdown -->
         <BaseCard>
-          <h3 class="text-lg font-semibold text-gray-900 mb-4">Income by Category</h3>
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">{{ t('income_by_category') }}</h3>
           <ExpenseChart
             v-if="incomeTransactions.length > 0"
             :data="incomeTransactions"
             type="doughnut"
           />
-          <div v-else class="h-64 flex items-center justify-center text-gray-500">
-            No income data
+          <div v-else class="h-64 flex items-center justify-center text-gray-500 dark:text-gray-400">
+            {{ t('no_income_data') }}
           </div>
         </BaseCard>
       </div>
 
       <!-- Trend Chart -->
       <BaseCard>
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Daily Trend (Last 14 Days)</h3>
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">{{ t('daily_trend') }}</h3>
         <TrendChart :data="transactions" />
       </BaseCard>
 
       <!-- Monthly Comparison -->
       <BaseCard>
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Monthly Comparison</h3>
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">{{ t('monthly_comparison') }}</h3>
         <BarChart :data="transactions" />
       </BaseCard>
 
       <!-- Top Spending Categories -->
       <BaseCard>
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Top Spending Categories</h3>
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">{{ t('top_spending_categories') }}</h3>
         <div class="space-y-3">
           <div
             v-for="(item, index) in topCategories"
@@ -198,33 +200,33 @@ const nextMonth = () => {
             class="flex items-center justify-between"
           >
             <div class="flex items-center space-x-3">
-              <span class="w-6 h-6 flex items-center justify-center text-sm font-medium bg-gray-100 rounded-full text-gray-600">
+              <span class="w-6 h-6 flex items-center justify-center text-sm font-medium bg-gray-100 dark:bg-gray-700 rounded-full text-gray-600 dark:text-gray-300">
                 {{ index + 1 }}
               </span>
-              <span class="text-gray-900">{{ categoryLabels[item.category] || item.category }}</span>
+              <span class="text-gray-900 dark:text-white">{{ categoryLabels[item.category] || item.category }}</span>
             </div>
-            <span class="font-medium text-gray-900">{{ formatCurrency(item.amount) }}</span>
+            <span class="font-medium text-gray-900 dark:text-white">{{ formatCurrency(item.amount) }}</span>
           </div>
-          <p v-if="topCategories.length === 0" class="text-gray-500 text-center py-4">
-            No expense data available
+          <p v-if="topCategories.length === 0" class="text-gray-500 dark:text-gray-400 text-center py-4">
+            {{ t('no_expense_data') }}
           </p>
         </div>
       </BaseCard>
 
       <!-- Overall Summary -->
       <BaseCard class="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
-        <h3 class="text-lg font-semibold mb-4">All Time Summary</h3>
+        <h3 class="text-lg font-semibold mb-4">{{ t('all_transactions') }}</h3>
         <div class="grid grid-cols-3 gap-4">
           <div>
-            <p class="text-blue-200 text-sm mb-1">Total Income</p>
+            <p class="text-blue-200 text-sm mb-1">{{ t('total_income') }}</p>
             <p class="text-xl font-bold">{{ formatCurrency(totalIncome) }}</p>
           </div>
           <div>
-            <p class="text-blue-200 text-sm mb-1">Total Expense</p>
+            <p class="text-blue-200 text-sm mb-1">{{ t('total_expense') }}</p>
             <p class="text-xl font-bold">{{ formatCurrency(totalExpense) }}</p>
           </div>
           <div>
-            <p class="text-blue-200 text-sm mb-1">Net Balance</p>
+            <p class="text-blue-200 text-sm mb-1">{{ t('total_balance') }}</p>
             <p class="text-xl font-bold">{{ formatCurrency(totalBalance) }}</p>
           </div>
         </div>

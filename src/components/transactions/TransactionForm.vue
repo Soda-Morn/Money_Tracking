@@ -2,11 +2,13 @@
 import { ref, computed } from 'vue'
 import { useFormat } from '../../composables/useFormat'
 import { useCategories } from '../../composables/useCategories'
+import { useI18n } from 'vue-i18n'
 import BaseButton from '../ui/BaseButton.vue'
 import BaseInput from '../ui/BaseInput.vue'
 import BaseSelect from '../ui/BaseSelect.vue'
 
 const emit = defineEmits(['submit', 'cancel'])
+const { t } = useI18n()
 
 const props = defineProps({
   initialData: {
@@ -58,7 +60,7 @@ const handleSubmit = () => {
         ]"
         @click="form.type = 'expense'"
       >
-        Expense
+        {{ t('expense') }}
       </button>
       <button
         type="button"
@@ -70,7 +72,7 @@ const handleSubmit = () => {
         ]"
         @click="form.type = 'income'"
       >
-        Income
+        {{ t('income') }}
       </button>
     </div>
 
@@ -78,7 +80,7 @@ const handleSubmit = () => {
     <BaseInput
       v-model="form.amount"
       type="number"
-      label="Amount"
+      :label="t('amount')"
       placeholder="0.00"
       :required="true"
     />
@@ -86,7 +88,7 @@ const handleSubmit = () => {
     <!-- Category -->
     <BaseSelect
       v-model="form.category"
-      label="Category"
+      :label="t('category')"
       :options="categoryOptions"
       :required="true"
     />
@@ -94,7 +96,7 @@ const handleSubmit = () => {
     <!-- Description -->
     <BaseInput
       v-model="form.description"
-      label="Description"
+      :label="t('description')"
       placeholder="Enter description (optional)"
     />
 
@@ -102,17 +104,17 @@ const handleSubmit = () => {
     <BaseInput
       v-model="form.date"
       type="date"
-      label="Date"
+      :label="t('date')"
       :required="true"
     />
 
     <!-- Actions -->
     <div class="flex gap-3 pt-2">
       <BaseButton type="button" variant="secondary" @click="emit('cancel')" full-width>
-        Cancel
+        {{ t('cancel') }}
       </BaseButton>
       <BaseButton type="submit" :disabled="!isValid" full-width>
-        {{ isEditing ? 'Update' : 'Add' }} Transaction
+        {{ isEditing ? t('update') : t('add') }} {{ t('transaction') }}
       </BaseButton>
     </div>
   </form>

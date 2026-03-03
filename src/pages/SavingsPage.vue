@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useSavingsGoals } from '../composables/useSavingsGoals'
 import { useFormat } from '../composables/useFormat'
 import GoalCard from '../components/savings/GoalCard.vue'
@@ -9,6 +10,9 @@ import BaseCard from '../components/ui/BaseCard.vue'
 import BaseButton from '../components/ui/BaseButton.vue'
 import BaseModal from '../components/ui/BaseModal.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
+
+// translation helper
+const { t } = useI18n()
 
 const {
   goals,
@@ -73,29 +77,29 @@ const handleAddMoneySubmit = (amount) => {
     <!-- Page Header -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div>
-        <h1 class="text-2xl font-bold text-gray-900">Savings Goals</h1>
-        <p class="text-gray-500 mt-1">Track your savings and reach your goals</p>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ t('savings') }}</h1>
+        <p class="text-gray-500 dark:text-gray-400 mt-1">{{ t('track_savings_desc') }}</p>
       </div>
       <BaseButton @click="showAddModal = true">
         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
         </svg>
-        New Goal
+        {{ t('new_goal') }}
       </BaseButton>
     </div>
 
     <!-- Summary Cards -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <BaseCard>
-        <p class="text-sm text-gray-500 mb-1">Total Saved</p>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">{{ t('total_saved') }}</p>
         <p class="text-2xl font-bold text-blue-600">{{ formatCurrency(totalSaved) }}</p>
       </BaseCard>
       <BaseCard>
-        <p class="text-sm text-gray-500 mb-1">Total Target</p>
-        <p class="text-2xl font-bold text-gray-900">{{ formatCurrency(totalTarget) }}</p>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">{{ t('total_target') }}</p>
+        <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ formatCurrency(totalTarget) }}</p>
       </BaseCard>
       <BaseCard>
-        <p class="text-sm text-gray-500 mb-1">Completed Goals</p>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">{{ t('completed_goals') }}</p>
         <p class="text-2xl font-bold text-green-600">{{ completedGoals }} / {{ goals.length }}</p>
       </BaseCard>
     </div>
@@ -103,10 +107,10 @@ const handleAddMoneySubmit = (amount) => {
     <!-- Overall Progress -->
     <BaseCard v-if="goals.length > 0">
       <div class="flex justify-between items-center mb-2">
-        <h3 class="font-medium text-gray-900">Overall Progress</h3>
-        <span class="text-sm text-gray-500">{{ Math.round(overallProgress) }}%</span>
+        <h3 class="font-medium text-gray-900 dark:text-white">{{ t('overall_progress') }}</h3>
+        <span class="text-sm text-gray-500 dark:text-gray-400">{{ Math.round(overallProgress) }}%</span>
       </div>
-      <div class="w-full bg-gray-200 rounded-full h-3">
+      <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
         <div
           class="bg-blue-600 h-3 rounded-full transition-all duration-500"
           :style="{ width: `${Math.min(100, overallProgress)}%` }"
@@ -129,12 +133,12 @@ const handleAddMoneySubmit = (amount) => {
     <!-- Empty State -->
     <BaseCard v-else>
       <EmptyState
-        title="No savings goals yet"
-        description="Create your first savings goal to start tracking your progress"
+        :title="t('no_savings_goals_title')"
+        :description="t('no_savings_goals_desc')"
         icon="target"
       >
         <BaseButton @click="showAddModal = true">
-          Create Your First Goal
+          {{ t('create_first_goal') }}
         </BaseButton>
       </EmptyState>
     </BaseCard>
@@ -142,7 +146,7 @@ const handleAddMoneySubmit = (amount) => {
     <!-- Add Goal Modal -->
     <BaseModal
       :show="showAddModal"
-      title="Create Savings Goal"
+      :title="t('create_savings_goal')"
       @close="showAddModal = false"
     >
       <GoalForm
@@ -154,7 +158,7 @@ const handleAddMoneySubmit = (amount) => {
     <!-- Edit Goal Modal -->
     <BaseModal
       :show="showEditModal"
-      title="Edit Savings Goal"
+      :title="t('edit_savings_goal')"
       @close="showEditModal = false"
     >
       <GoalForm
@@ -169,7 +173,7 @@ const handleAddMoneySubmit = (amount) => {
     <!-- Add Money Modal -->
     <BaseModal
       :show="showAddMoneyModal"
-      title="Add Money to Goal"
+      :title="t('add_money_goal')"
       @close="showAddMoneyModal = false"
     >
       <AddMoneyForm

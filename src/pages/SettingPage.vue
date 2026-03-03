@@ -1,32 +1,37 @@
 <script setup>
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTheme } from '../composables/useTheme'
+import { useI18n } from 'vue-i18n'
+import { useLanguage } from '../composables/useLanguage'
 import BaseCard from '../components/ui/BaseCard.vue'
 
 const router = useRouter()
 const { isDark, toggleTheme } = useTheme()
+const { t } = useI18n()
+const { locale } = useLanguage()
 
-const menuItems = [
+const menuItems = computed(() => [
   {
     icon: '🏷️',
-    label: 'Categories',
-    description: 'Add, view and delete categories',
+    label: t('categories'),
+    description: t('categories_desc'),
     route: '/settings/categories'
   }
-]
+])
 </script>
 
 <template>
   <div class="space-y-6 max-w-2xl mx-auto animate-fade-in">
     <!-- Page Header -->
     <div>
-      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Settings</h1>
-      <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Manage your preferences</p>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ t('settings') }}</h1>
+      <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{{ t('manage_preferences') }}</p>
     </div>
 
     <!-- ── Appearance ────────────────────────────────────────────────── -->
     <BaseCard>
-      <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Appearance</h2>
+      <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-4">{{ t('appearance') }}</h2>
 
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
@@ -38,9 +43,9 @@ const menuItems = [
           </div>
           <div>
             <p class="text-sm font-medium text-gray-900 dark:text-white">
-              {{ isDark ? 'Dark Mode' : 'Light Mode' }}
+              {{ isDark ? t('dark_mode') : t('light_mode') }}
             </p>
-            <p class="text-xs text-gray-500 dark:text-gray-400">Toggle between light and dark theme</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('toggle_dark_mode_desc') }}</p>
           </div>
         </div>
 
@@ -61,9 +66,29 @@ const menuItems = [
 
     <!-- ── General ────────────────────────────────────────────────────── -->
     <BaseCard padding="p-0">
-      <h2 class="text-base font-semibold text-gray-900 dark:text-white px-4 pt-4 pb-3">General</h2>
+      <h2 class="text-base font-semibold text-gray-900 dark:text-white px-4 pt-4 pb-3">{{ t('general') }}</h2>
 
       <div class="divide-y divide-gray-100 dark:divide-gray-700">
+        <!-- language selector -->
+        <div class="w-full flex items-center justify-between px-4 py-4 text-left">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 bg-gray-100 dark:bg-gray-700 rounded-xl flex items-center justify-center text-lg shrink-0">
+              🌐
+            </div>
+            <div>
+              <p class="text-sm font-medium text-gray-900 dark:text-white">{{ t('language') }}</p>
+              <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{{ t('choose_language_desc') }}</p>
+            </div>
+          </div>
+          <select
+            v-model="locale"
+            class="bg-white dark:bg-gray-800 border rounded px-2 py-1 text-sm"
+          >
+            <option value="en">{{ t('english') }}</option>
+            <option value="km">{{ t('khmer') }}</option>
+          </select>
+        </div>
+
         <button
           v-for="item in menuItems"
           :key="item.route"

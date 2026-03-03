@@ -38,8 +38,8 @@ defineProps({
       </svg>
     </div>
 
-    <h3 class="text-lg font-medium text-gray-900 mb-1">{{ title }}</h3>
-    <p v-if="description" class="text-gray-500 max-w-sm">{{ description }}</p>
+    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-1">{{ title }}</h3>
+    <p v-if="description" class="text-gray-500 dark:text-gray-400 max-w-sm">{{ description }}</p>
     <div class="mt-4">
       <slot></slot>
     </div>

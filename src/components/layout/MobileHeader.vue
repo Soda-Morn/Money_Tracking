@@ -2,20 +2,22 @@
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '../../composables/useAuth'
+import { useI18n } from 'vue-i18n'
 
 const route = useRoute()
 const router = useRouter()
 const { currentUser, logout } = useAuth()
+const { t } = useI18n()
 
 const showMenu = ref(false)
 
 const pageTitle = computed(() => {
   const titles = {
-    '/': 'Dashboard',
-    '/savings': 'Savings Goals',
-    '/analytics': 'Analytics',
-    '/settings': 'Settings',
-    '/settings/categories': 'Categories'
+    '/': t('pages.dashboard'),
+    '/savings': t('pages.savings'),
+    '/analytics': t('pages.analytics'),
+    '/settings': t('pages.settings'),
+    '/settings/categories': t('pages.categories')
   }
   return titles[route.path] || 'Money Tracking'
 })
@@ -72,7 +74,7 @@ const handleLogout = async () => {
             </div>
             <div class="min-w-0">
               <p class="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                {{ currentUser?.displayName || 'User' }}
+                {{ currentUser?.displayName || t('user') }}
               </p>
               <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ currentUser?.email }}</p>
             </div>
@@ -86,7 +88,7 @@ const handleLogout = async () => {
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
-            Sign Out
+            {{ t('sign_out') }}
           </button>
         </div>
       </div>

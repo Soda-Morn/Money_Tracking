@@ -8,6 +8,7 @@ import TransactionForm from '../components/transactions/TransactionForm.vue'
 import BaseCard from '../components/ui/BaseCard.vue'
 import BaseButton from '../components/ui/BaseButton.vue'
 import BaseModal from '../components/ui/BaseModal.vue'
+import { useI18n } from 'vue-i18n'
 
 const { transactions, addTransaction, updateTransaction, deleteTransaction } = useTransactions()
 const { getMonthName } = useFormat()
@@ -19,8 +20,10 @@ const toMonthKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStar
 
 const selectedMonth = ref(null)
 
+const { t } = useI18n()
+
 const monthLabel = computed(() => {
-  if (!selectedMonth.value) return 'All Transactions'
+  if (!selectedMonth.value) return t('all_transactions')
   const [year, month] = selectedMonth.value.split('-').map(Number)
   return `${getMonthName(month - 1)} ${year}`
 })
@@ -96,9 +99,9 @@ const filteredBalance = computed(() => filteredIncome.value - filteredExpense.va
 
 // ── Transaction list controls ─────────────────────────────────────────────────
 const TYPE_OPTIONS = [
-  { label: 'All',     value: 'all' },
-  { label: 'Income',  value: 'income' },
-  { label: 'Expense', value: 'expense' }
+  { label: t('all'),     value: 'all' },
+  { label: t('income'),  value: 'income' },
+  { label: t('expense'), value: 'expense' }
 ]
 const WEEK_DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
 const PAGE_SIZE = 8
@@ -221,14 +224,14 @@ const handleDelete = (id) => {
     <!-- Page Header -->
     <div class="flex items-center justify-end lg:justify-between gap-3">
       <div class="hidden lg:block">
-        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Track your income and expenses</p>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ t('pages.dashboard') }}</h1>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ t('track_income_expenses') }}</p>
       </div>
       <BaseButton class="w-auto" @click="showAddModal = true">
         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
         </svg>
-        Add Transaction
+        {{ t('add_transaction') }}
       </BaseButton>
     </div>
 
@@ -267,7 +270,7 @@ const handleDelete = (id) => {
           <button
             v-if="selectedMonth"
             class="p-1 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-md transition-colors"
-            title="Show all transactions"
+            title="{{ t('all_transactions') }}"
             @click="clearMonthFilter"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -302,7 +305,7 @@ const handleDelete = (id) => {
             ]"
             @click="clearMonthFilter"
           >
-            All Transactions
+            {{ t('all_transactions') }}
           </button>
 
           <!-- Year Navigator -->
@@ -357,7 +360,7 @@ const handleDelete = (id) => {
     <BaseCard>
       <!-- Header -->
       <div class="flex items-center justify-between mb-3">
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Transactions</h2>
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('transactions') }}</h2>
         <span class="text-sm text-gray-500 dark:text-gray-400">{{ dateFilteredTransactions.length }} total</span>
       </div>
 
@@ -511,12 +514,12 @@ const handleDelete = (id) => {
     </BaseCard>
 
     <!-- Add Transaction Modal -->
-    <BaseModal :show="showAddModal" title="Add Transaction" @close="showAddModal = false">
+    <BaseModal :show="showAddModal" :title="t('add_transaction')" @close="showAddModal = false">
       <TransactionForm @submit="handleAdd" @cancel="showAddModal = false" />
     </BaseModal>
 
     <!-- Edit Transaction Modal -->
-    <BaseModal :show="showEditModal" title="Edit Transaction" @close="showEditModal = false">
+    <BaseModal :show="showEditModal" :title="t('edit_transaction')" @close="showEditModal = false">
       <TransactionForm
         v-if="editingTransaction"
         :initial-data="editingTransaction"

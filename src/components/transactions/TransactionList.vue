@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useFormat } from '../../composables/useFormat'
 import TransactionItem from './TransactionItem.vue'
 import EmptyState from '../ui/EmptyState.vue'
@@ -15,6 +16,7 @@ const props = defineProps({
 const emit = defineEmits(['edit', 'delete'])
 
 const { formatRelativeDate } = useFormat()
+const { t } = useI18n()
 
 // Group transactions by date
 const groupedTransactions = computed(() => {
@@ -36,8 +38,8 @@ const groupedTransactions = computed(() => {
   <div>
     <EmptyState
       v-if="transactions.length === 0"
-      title="No transactions yet"
-      description="Add your first income or expense to start tracking your money"
+      :title="t('no_transactions_title')"
+      :description="t('no_transactions_desc')"
       icon="folder"
     />
 
@@ -45,11 +47,11 @@ const groupedTransactions = computed(() => {
       <div v-for="group in groupedTransactions" :key="group.date">
         <!-- Date Header -->
         <div class="flex items-center justify-between mb-3">
-          <h3 class="text-sm font-medium text-gray-500">
+          <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">
             {{ formatRelativeDate(group.date) }}
           </h3>
-          <span class="text-xs text-gray-400">
-            {{ group.items.length }} transaction{{ group.items.length > 1 ? 's' : '' }}
+          <span class="text-xs text-gray-400 dark:text-gray-500">
+            {{ group.items.length }} {{ group.items.length > 1 ? t('transactions') : t('transaction') }}
           </span>
         </div>
 

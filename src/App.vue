@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue'
 import { useAuth } from './composables/useAuth'
 import { useTheme } from './composables/useTheme'
+import { useUserPreferences } from './composables/useUserPreferences'
 import Navbar from './components/layout/Navbar.vue'
 import MobileNav from './components/layout/MobileNav.vue'
 import MobileHeader from './components/layout/MobileHeader.vue'
@@ -11,6 +12,8 @@ const { t, locale } = useI18n()
 const { currentUser, authLoading } = useAuth()
 // Initialize theme on app start (applies saved dark/light class to <html>)
 useTheme()
+// Sync theme + locale with Firebase so they restore after clearing app data
+useUserPreferences()
 
 // Smooth fade when language switches
 const isFading = ref(false)

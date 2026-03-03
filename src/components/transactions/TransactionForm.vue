@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useFormat } from '../../composables/useFormat'
+import { useCategories } from '../../composables/useCategories'
 import BaseButton from '../ui/BaseButton.vue'
 import BaseInput from '../ui/BaseInput.vue'
 import BaseSelect from '../ui/BaseSelect.vue'
@@ -19,6 +20,7 @@ const props = defineProps({
 })
 
 const { getCurrentDate } = useFormat()
+const { expenseCategories, incomeCategories } = useCategories()
 
 const form = ref({
   type: props.initialData.type || 'expense',
@@ -28,32 +30,8 @@ const form = ref({
   date: props.initialData.date || getCurrentDate()
 })
 
-const typeOptions = [
-  { value: 'expense', label: 'Expense' },
-  { value: 'income', label: 'Income' }
-]
-
-const expenseCategories = [
-  { value: 'food', label: 'Food & Dining' },
-  { value: 'transport', label: 'Transportation' },
-  { value: 'shopping', label: 'Shopping' },
-  { value: 'bills', label: 'Bills & Utilities' },
-  { value: 'entertainment', label: 'Entertainment' },
-  { value: 'health', label: 'Health' },
-  { value: 'education', label: 'Education' },
-  { value: 'other', label: 'Other' }
-]
-
-const incomeCategories = [
-  { value: 'salary', label: 'Salary' },
-  { value: 'freelance', label: 'Freelance' },
-  { value: 'investment', label: 'Investment' },
-  { value: 'gift', label: 'Gift' },
-  { value: 'other', label: 'Other' }
-]
-
 const categoryOptions = computed(() => {
-  return form.value.type === 'expense' ? expenseCategories : incomeCategories
+  return form.value.type === 'expense' ? expenseCategories.value : incomeCategories.value
 })
 
 const isValid = computed(() => {
@@ -69,14 +47,14 @@ const handleSubmit = () => {
 <template>
   <form @submit.prevent="handleSubmit" class="space-y-4">
     <!-- Type Selection -->
-    <div class="grid grid-cols-2 gap-2 p-1 bg-gray-100 rounded-lg">
+    <div class="grid grid-cols-2 gap-2 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
       <button
         type="button"
         :class="[
           'py-2 px-4 rounded-md font-medium transition-colors',
           form.type === 'expense'
-            ? 'bg-white text-red-600 shadow-sm'
-            : 'text-gray-600 hover:text-gray-900'
+            ? 'bg-white dark:bg-gray-600 text-red-600 shadow-sm'
+            : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
         ]"
         @click="form.type = 'expense'"
       >
@@ -87,8 +65,8 @@ const handleSubmit = () => {
         :class="[
           'py-2 px-4 rounded-md font-medium transition-colors',
           form.type === 'income'
-            ? 'bg-white text-green-600 shadow-sm'
-            : 'text-gray-600 hover:text-gray-900'
+            ? 'bg-white dark:bg-gray-600 text-green-600 shadow-sm'
+            : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
         ]"
         @click="form.type = 'income'"
       >

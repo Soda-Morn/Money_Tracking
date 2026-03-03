@@ -13,26 +13,39 @@ const { transactions, addTransaction, updateTransaction, deleteTransaction } = u
 const { getMonthName } = useFormat()
 
 // ── Month filter ─────────────────────────────────────────────────────────────
+// null = show ALL transactions (default); 'YYYY-MM' = filter to that month
 const now = new Date()
 const toMonthKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 
-const selectedMonth = ref(toMonthKey(now))
+const selectedMonth = ref(null)
 
 const monthLabel = computed(() => {
+  if (!selectedMonth.value) return 'All Transactions'
   const [year, month] = selectedMonth.value.split('-').map(Number)
   return `${getMonthName(month - 1)} ${year}`
 })
 
 const prevMonth = () => {
+  if (!selectedMonth.value) {
+    selectedMonth.value = toMonthKey(now)
+    return
+  }
   const [year, month] = selectedMonth.value.split('-').map(Number)
-  const d = new Date(year, month - 2)
-  selectedMonth.value = toMonthKey(d)
+  selectedMonth.value = toMonthKey(new Date(year, month - 2))
 }
 
 const nextMonth = () => {
+  if (!selectedMonth.value) {
+    selectedMonth.value = toMonthKey(now)
+    return
+  }
   const [year, month] = selectedMonth.value.split('-').map(Number)
-  const d = new Date(year, month)
-  selectedMonth.value = toMonthKey(d)
+  selectedMonth.value = toMonthKey(new Date(year, month))
+}
+
+const clearMonthFilter = () => {
+  selectedMonth.value = null
+  showMonthPicker.value = false
 }
 
 // ── Month picker ──────────────────────────────────────────────────────────────
@@ -41,31 +54,31 @@ const showMonthPicker = ref(false)
 const pickerYear = ref(now.getFullYear())
 
 const openPicker = () => {
-  pickerYear.value = Number(selectedMonth.value.split('-')[0])
+  pickerYear.value = selectedMonth.value
+    ? Number(selectedMonth.value.split('-')[0])
+    : now.getFullYear()
   showMonthPicker.value = true
 }
 
-const closePicker = () => {
-  showMonthPicker.value = false
-}
-
-const isMonthDisabled = () => false
+const closePicker = () => { showMonthPicker.value = false }
 
 const isMonthSelected = (i) => {
+  if (!selectedMonth.value) return false
   const [year, month] = selectedMonth.value.split('-').map(Number)
   return pickerYear.value === year && i === month - 1
 }
 
 const selectMonth = (i) => {
-  if (isMonthDisabled(i)) return
   selectedMonth.value = `${pickerYear.value}-${String(i + 1).padStart(2, '0')}`
   showMonthPicker.value = false
 }
 
 // ── Filtered data ─────────────────────────────────────────────────────────────
-const filteredTransactions = computed(() =>
-  transactions.value.filter(t => t.date.startsWith(selectedMonth.value))
-)
+// null selectedMonth → return all; otherwise filter by month prefix
+const filteredTransactions = computed(() => {
+  if (!selectedMonth.value) return transactions.value
+  return transactions.value.filter(t => t.date.startsWith(selectedMonth.value))
+})
 
 const filteredIncome = computed(() =>
   filteredTransactions.value
@@ -98,6 +111,7 @@ const currentPage    = ref(1)
 // When month changes: clear date filter and go back to page 1
 watch(selectedMonth, () => {
   dateFilter.value = null
+  showDatePicker.value = false
   currentPage.value = 1
 })
 // When type or date filter changes: reset page only
@@ -122,8 +136,9 @@ const paginatedTransactions = computed(() => {
   return dateFilteredTransactions.value.slice(start, start + PAGE_SIZE)
 })
 
-// ── Calendar (date filter) ────────────────────────────────────────────────────
+// ── Calendar (date filter) — only active when a month is selected ─────────────
 const calendarDays = computed(() => {
+  if (!selectedMonth.value) return []
   const [year, month] = selectedMonth.value.split('-').map(Number)
   const firstDayOfWeek = new Date(year, month - 1, 1).getDay()
   const daysInMonth = new Date(year, month, 0).getDate()
@@ -133,7 +148,6 @@ const calendarDays = computed(() => {
   return cells
 })
 
-// Dots: all days that have any transaction (based on month filter, before type filter)
 const daysWithTransactions = computed(() => {
   const days = new Set()
   filteredTransactions.value.forEach(t => days.add(Number(t.date.split('-')[2])))
@@ -151,7 +165,7 @@ const dateFilterLabel = computed(() => {
 })
 
 const selectDay = (day) => {
-  if (!day) return
+  if (!day || !selectedMonth.value) return
   const [year, month] = selectedMonth.value.split('-')
   const key = `${year}-${month}-${String(day).padStart(2, '0')}`
   dateFilter.value = dateFilter.value === key ? null : key
@@ -175,7 +189,7 @@ const visiblePageNumbers = computed(() => {
 })
 
 // ── Modal state ───────────────────────────────────────────────────────────────
-const showAddModal = ref(false)
+const showAddModal  = ref(false)
 const showEditModal = ref(false)
 const editingTransaction = ref(null)
 
@@ -206,10 +220,9 @@ const handleDelete = (id) => {
   <div class="space-y-4 lg:space-y-6">
     <!-- Page Header -->
     <div class="flex items-center justify-end lg:justify-between gap-3">
-      <!-- Title: hidden on mobile since MobileHeader already shows it -->
       <div class="hidden lg:block">
-        <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p class="text-sm text-gray-500 mt-1">Track your income and expenses</p>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Track your income and expenses</p>
       </div>
       <BaseButton class="w-auto" @click="showAddModal = true">
         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -221,13 +234,12 @@ const handleDelete = (id) => {
 
     <!-- Month Filter Navigator -->
     <div class="relative">
-      <!-- Transparent backdrop — closes picker on tap-outside -->
       <div v-if="showMonthPicker" class="fixed inset-0 z-20" @click="closePicker"></div>
 
       <!-- Navigator bar -->
-      <div class="flex items-center justify-between bg-white rounded-xl border border-gray-100 shadow-sm px-2 py-1">
+      <div class="flex items-center justify-between bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm px-2 py-1">
         <button
-          class="p-2 text-gray-500 hover:text-gray-900 active:text-gray-900 hover:bg-gray-100 active:bg-gray-100 rounded-lg transition-colors"
+          class="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           @click="prevMonth"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -235,23 +247,37 @@ const handleDelete = (id) => {
           </svg>
         </button>
 
-        <!-- Tappable label — opens the month grid picker -->
-        <button
-          class="flex items-center gap-1 px-3 py-1.5 rounded-lg hover:bg-gray-100 active:bg-gray-100 transition-colors"
-          @click="openPicker"
-        >
-          <span class="text-sm font-semibold text-gray-900">{{ monthLabel }}</span>
-          <svg
-            class="w-4 h-4 text-gray-400 transition-transform duration-200"
-            :class="showMonthPicker ? 'rotate-180' : ''"
-            fill="none" stroke="currentColor" viewBox="0 0 24 24"
+        <!-- Label + optional clear button -->
+        <div class="flex items-center gap-1">
+          <button
+            class="flex items-center gap-1 px-3 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            @click="openPicker"
           >
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
+            <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ monthLabel }}</span>
+            <svg
+              class="w-4 h-4 text-gray-400 transition-transform duration-200"
+              :class="showMonthPicker ? 'rotate-180' : ''"
+              fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          <!-- × clear button — only when a month is active -->
+          <button
+            v-if="selectedMonth"
+            class="p-1 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-md transition-colors"
+            title="Show all transactions"
+            @click="clearMonthFilter"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
 
         <button
-          class="p-2 rounded-lg transition-colors text-gray-500 hover:text-gray-900 active:text-gray-900 hover:bg-gray-100 active:bg-gray-100"
+          class="p-2 rounded-lg transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700"
           @click="nextMonth"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -264,21 +290,34 @@ const handleDelete = (id) => {
       <Transition name="picker">
         <div
           v-if="showMonthPicker"
-          class="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl border border-gray-100 shadow-lg z-30 p-3"
+          class="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-lg z-30 p-3"
         >
+          <!-- Show All button -->
+          <button
+            :class="[
+              'w-full py-2 mb-3 text-sm font-medium rounded-lg transition-colors',
+              !selectedMonth
+                ? 'bg-blue-600 text-white'
+                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600'
+            ]"
+            @click="clearMonthFilter"
+          >
+            All Transactions
+          </button>
+
           <!-- Year Navigator -->
           <div class="flex items-center justify-between mb-3">
             <button
-              class="p-2 text-gray-500 hover:text-gray-900 active:text-gray-900 hover:bg-gray-100 active:bg-gray-100 rounded-lg transition-colors"
+              class="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               @click="pickerYear--"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <span class="text-sm font-semibold text-gray-900">{{ pickerYear }}</span>
+            <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ pickerYear }}</span>
             <button
-              class="p-2 rounded-lg transition-colors text-gray-500 hover:text-gray-900 active:text-gray-900 hover:bg-gray-100 active:bg-gray-100"
+              class="p-2 rounded-lg transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700"
               @click="pickerYear++"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -292,14 +331,11 @@ const handleDelete = (id) => {
             <button
               v-for="(name, i) in shortMonths"
               :key="i"
-              :disabled="isMonthDisabled(i)"
               :class="[
                 'py-2.5 text-sm rounded-lg font-medium transition-colors',
                 isMonthSelected(i)
                   ? 'bg-blue-600 text-white'
-                  : isMonthDisabled(i)
-                    ? 'text-gray-300 cursor-not-allowed'
-                    : 'text-gray-700 hover:bg-gray-100 active:bg-gray-100'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
               ]"
               @click="selectMonth(i)"
             >
@@ -310,7 +346,7 @@ const handleDelete = (id) => {
       </Transition>
     </div>
 
-    <!-- Summary Cards (filtered by selected month) -->
+    <!-- Summary Cards -->
     <SummaryCards
       :total-income="filteredIncome"
       :total-expense="filteredExpense"
@@ -321,13 +357,13 @@ const handleDelete = (id) => {
     <BaseCard>
       <!-- Header -->
       <div class="flex items-center justify-between mb-3">
-        <h2 class="text-lg font-semibold text-gray-900">Transactions</h2>
-        <span class="text-sm text-gray-500">{{ dateFilteredTransactions.length }} total</span>
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Transactions</h2>
+        <span class="text-sm text-gray-500 dark:text-gray-400">{{ dateFilteredTransactions.length }} total</span>
       </div>
 
-      <!-- Filter row: type pills + date toggle -->
+      <!-- Filter row: type pills + date toggle (calendar hidden when no month selected) -->
       <div class="flex items-center gap-2 mb-3">
-        <div class="flex-1 grid grid-cols-3 gap-1 p-1 bg-gray-100 rounded-lg">
+        <div class="flex-1 grid grid-cols-3 gap-1 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
           <button
             v-for="opt in TYPE_OPTIONS"
             :key="opt.value"
@@ -335,23 +371,24 @@ const handleDelete = (id) => {
               'py-1.5 text-sm font-medium rounded-md transition-colors',
               typeFilter === opt.value
                 ? opt.value === 'income'
-                  ? 'bg-white text-green-600 shadow-sm'
+                  ? 'bg-white dark:bg-gray-600 text-green-600 shadow-sm'
                   : opt.value === 'expense'
-                    ? 'bg-white text-red-600 shadow-sm'
-                    : 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500 active:bg-white/50'
+                    ? 'bg-white dark:bg-gray-600 text-red-600 shadow-sm'
+                    : 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
+                : 'text-gray-500 dark:text-gray-400'
             ]"
             @click="typeFilter = opt.value"
           >{{ opt.label }}</button>
         </div>
 
-        <!-- Calendar toggle button -->
+        <!-- Calendar toggle — only when a specific month is active -->
         <button
+          v-if="selectedMonth"
           :class="[
             'shrink-0 w-10 h-10 flex items-center justify-center rounded-xl border transition-colors',
             showDatePicker || dateFilter
               ? 'bg-blue-600 border-blue-600 text-white'
-              : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50 active:bg-gray-100'
+              : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
           ]"
           @click="showDatePicker = !showDatePicker"
         >
@@ -363,12 +400,12 @@ const handleDelete = (id) => {
 
       <!-- Active date chip -->
       <div v-if="dateFilter" class="flex items-center gap-2 mb-3">
-        <span class="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 text-sm font-medium px-3 py-1 rounded-full">
+        <span class="inline-flex items-center gap-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-sm font-medium px-3 py-1 rounded-full">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
           {{ dateFilterLabel }}
-          <button class="ml-0.5 hover:text-blue-900" @click="clearDateFilter">
+          <button class="ml-0.5 hover:text-blue-900 dark:hover:text-blue-100" @click="clearDateFilter">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -376,18 +413,15 @@ const handleDelete = (id) => {
         </span>
       </div>
 
-      <!-- Inline Calendar -->
+      <!-- Inline Calendar (only when month selected) -->
       <Transition name="picker">
-        <div v-if="showDatePicker" class="mb-4 bg-gray-50 rounded-xl p-3">
-          <!-- Day-of-week headers -->
+        <div v-if="showDatePicker && selectedMonth" class="mb-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3">
           <div class="grid grid-cols-7 mb-1">
             <span
               v-for="d in WEEK_DAYS" :key="d"
               class="text-xs text-center text-gray-400 font-medium py-1"
             >{{ d }}</span>
           </div>
-
-          <!-- Day cells -->
           <div class="grid grid-cols-7 gap-y-1">
             <div
               v-for="(day, i) in calendarDays"
@@ -401,20 +435,16 @@ const handleDelete = (id) => {
                   selectedDay === day
                     ? 'bg-blue-600 text-white'
                     : daysWithTransactions.has(day)
-                      ? 'text-gray-900 hover:bg-blue-50 active:bg-blue-100'
-                      : 'text-gray-400 hover:bg-gray-100 active:bg-gray-200'
+                      ? 'text-gray-900 dark:text-white hover:bg-blue-50 dark:hover:bg-blue-900/30'
+                      : 'text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'
                 ]"
                 @click="selectDay(day)"
               >{{ day }}</button>
               <span v-else class="w-8 h-8"></span>
 
-              <!-- Transaction dot -->
               <span
                 v-if="day && daysWithTransactions.has(day)"
-                :class="[
-                  'w-1 h-1 rounded-full mt-0.5',
-                  selectedDay === day ? 'bg-white/70' : 'bg-blue-400'
-                ]"
+                :class="['w-1 h-1 rounded-full mt-0.5', selectedDay === day ? 'bg-white/70' : 'bg-blue-400']"
               ></span>
               <span v-else-if="day" class="w-1 h-1 mt-0.5"></span>
             </div>
@@ -430,15 +460,14 @@ const handleDelete = (id) => {
       />
 
       <!-- Pagination -->
-      <div v-if="totalPages > 1" class="flex items-center justify-center gap-1.5 pt-4 mt-4 border-t border-gray-100">
-        <!-- Prev -->
+      <div v-if="totalPages > 1" class="flex items-center justify-center gap-1.5 pt-4 mt-4 border-t border-gray-100 dark:border-gray-700">
         <button
           :disabled="currentPage === 1"
           :class="[
             'w-10 h-10 flex items-center justify-center rounded-xl border text-sm font-medium transition-colors',
             currentPage === 1
-              ? 'border-gray-100 text-gray-300 cursor-not-allowed bg-white'
-              : 'border-gray-200 text-gray-600 bg-white hover:bg-gray-50 active:bg-gray-100 shadow-sm'
+              ? 'border-gray-100 dark:border-gray-700 text-gray-300 dark:text-gray-600 cursor-not-allowed bg-white dark:bg-gray-800'
+              : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm'
           ]"
           @click="currentPage--"
         >
@@ -447,7 +476,6 @@ const handleDelete = (id) => {
           </svg>
         </button>
 
-        <!-- Page numbers / ellipsis -->
         <template v-for="p in visiblePageNumbers" :key="p">
           <span
             v-if="p === '...'"
@@ -459,20 +487,19 @@ const handleDelete = (id) => {
               'w-10 h-10 flex items-center justify-center rounded-xl border text-sm font-medium transition-colors',
               p === currentPage
                 ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
-                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 active:bg-gray-100 shadow-sm'
+                : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm'
             ]"
             @click="currentPage = p"
           >{{ p }}</button>
         </template>
 
-        <!-- Next -->
         <button
           :disabled="currentPage === totalPages"
           :class="[
             'w-10 h-10 flex items-center justify-center rounded-xl border text-sm font-medium transition-colors',
             currentPage === totalPages
-              ? 'border-gray-100 text-gray-300 cursor-not-allowed bg-white'
-              : 'border-gray-200 text-gray-600 bg-white hover:bg-gray-50 active:bg-gray-100 shadow-sm'
+              ? 'border-gray-100 dark:border-gray-700 text-gray-300 dark:text-gray-600 cursor-not-allowed bg-white dark:bg-gray-800'
+              : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm'
           ]"
           @click="currentPage++"
         >
@@ -484,23 +511,12 @@ const handleDelete = (id) => {
     </BaseCard>
 
     <!-- Add Transaction Modal -->
-    <BaseModal
-      :show="showAddModal"
-      title="Add Transaction"
-      @close="showAddModal = false"
-    >
-      <TransactionForm
-        @submit="handleAdd"
-        @cancel="showAddModal = false"
-      />
+    <BaseModal :show="showAddModal" title="Add Transaction" @close="showAddModal = false">
+      <TransactionForm @submit="handleAdd" @cancel="showAddModal = false" />
     </BaseModal>
 
     <!-- Edit Transaction Modal -->
-    <BaseModal
-      :show="showEditModal"
-      title="Edit Transaction"
-      @close="showEditModal = false"
-    >
+    <BaseModal :show="showEditModal" title="Edit Transaction" @close="showEditModal = false">
       <TransactionForm
         v-if="editingTransaction"
         :initial-data="editingTransaction"

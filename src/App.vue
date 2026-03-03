@@ -1,10 +1,13 @@
 <script setup>
 import { useAuth } from './composables/useAuth'
+import { useTheme } from './composables/useTheme'
 import Navbar from './components/layout/Navbar.vue'
 import MobileNav from './components/layout/MobileNav.vue'
 import MobileHeader from './components/layout/MobileHeader.vue'
 
 const { currentUser, authLoading } = useAuth()
+// Initialize theme on app start (applies saved dark/light class to <html>)
+useTheme()
 </script>
 
 <template>
@@ -18,7 +21,7 @@ const { currentUser, authLoading } = useAuth()
 
   <template v-else>
     <!-- Authenticated: show full app layout -->
-    <div v-if="currentUser" class="min-h-screen bg-gray-100">
+    <div v-if="currentUser" class="min-h-screen bg-gray-100 dark:bg-gray-900">
       <Navbar />
       <MobileHeader />
       <main class="lg:pl-64 lg:pb-0 main-mobile-pb">

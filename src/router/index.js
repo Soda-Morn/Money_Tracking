@@ -4,6 +4,8 @@ import { onAuthStateChanged } from 'firebase/auth'
 import HomePage from '../pages/HomePage.vue'
 import SavingsPage from '../pages/SavingsPage.vue'
 import AnalyticsPage from '../pages/AnalyticsPage.vue'
+import SettingPage from '../pages/SettingPage.vue'
+import CategoryPage from '../pages/CategoryPage.vue'
 import AuthPage from '../pages/AuthPage.vue'
 
 const routes = [
@@ -27,6 +29,16 @@ const routes = [
     path: '/analytics',
     name: 'Analytics',
     component: AnalyticsPage
+  },
+  {
+    path: '/settings',
+    name: 'Settings',
+    component: SettingPage
+  },
+  {
+    path: '/settings/categories',
+    name: 'Categories',
+    component: CategoryPage
   },
   {
     path: '/:pathMatch(.*)*',

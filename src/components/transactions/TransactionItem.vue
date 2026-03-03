@@ -1,5 +1,6 @@
 <script setup>
 import { useFormat } from '../../composables/useFormat'
+import { useCategories } from '../../composables/useCategories'
 
 defineProps({
   transaction: {
@@ -11,56 +12,25 @@ defineProps({
 const emit = defineEmits(['edit', 'delete'])
 
 const { formatCurrency } = useFormat()
-
-const categoryIcons = {
-  // Expense
-  food: '🍔',
-  transport: '🚗',
-  shopping: '🛍️',
-  bills: '📄',
-  entertainment: '🎬',
-  health: '🏥',
-  education: '📚',
-  // Income
-  salary: '💼',
-  freelance: '💻',
-  investment: '📈',
-  gift: '🎁',
-  other: '📌'
-}
-
-const categoryLabels = {
-  food: 'Food & Dining',
-  transport: 'Transportation',
-  shopping: 'Shopping',
-  bills: 'Bills & Utilities',
-  entertainment: 'Entertainment',
-  health: 'Health',
-  education: 'Education',
-  salary: 'Salary',
-  freelance: 'Freelance',
-  investment: 'Investment',
-  gift: 'Gift',
-  other: 'Other'
-}
+const { getCategoryInfo } = useCategories()
 </script>
 
 <template>
-  <div class="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-100 active:bg-gray-50 transition-colors">
+  <div class="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 active:bg-gray-50 dark:active:bg-gray-700 transition-colors">
     <!-- Category Icon -->
     <div :class="[
       'w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-lg',
-      transaction.type === 'income' ? 'bg-green-100' : 'bg-red-100'
+      transaction.type === 'income' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'
     ]">
-      {{ categoryIcons[transaction.category] || '📌' }}
+      {{ getCategoryInfo(transaction.category, transaction.type).icon }}
     </div>
 
     <!-- Details: flex-1 + min-w-0 lets truncate work correctly inside flex -->
     <div class="flex-1 min-w-0">
-      <p class="font-medium text-gray-900 truncate">
-        {{ categoryLabels[transaction.category] || transaction.category }}
+      <p class="font-medium text-gray-900 dark:text-white truncate">
+        {{ getCategoryInfo(transaction.category, transaction.type).label }}
       </p>
-      <p v-if="transaction.description" class="text-sm text-gray-500 truncate">
+      <p v-if="transaction.description" class="text-sm text-gray-500 dark:text-gray-400 truncate">
         {{ transaction.description }}
       </p>
     </div>
@@ -76,7 +46,7 @@ const categoryLabels = {
 
       <!-- Always visible — touch devices have no hover state -->
       <button
-        class="p-2 text-gray-300 hover:text-blue-600 active:text-blue-600 hover:bg-blue-50 active:bg-blue-50 rounded-lg transition-colors"
+        class="p-2 text-gray-300 hover:text-blue-600 active:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 active:bg-blue-50 rounded-lg transition-colors"
         @click="emit('edit', transaction)"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -84,7 +54,7 @@ const categoryLabels = {
         </svg>
       </button>
       <button
-        class="p-2 text-gray-300 hover:text-red-600 active:text-red-600 hover:bg-red-50 active:bg-red-50 rounded-lg transition-colors"
+        class="p-2 text-gray-300 hover:text-red-600 active:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 active:bg-red-50 rounded-lg transition-colors"
         @click="emit('delete', transaction.id)"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

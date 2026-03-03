@@ -25,17 +25,17 @@ const close = () => {
         <div class="absolute inset-0 bg-black/50" @click="close"></div>
 
         <!-- Modal Content: bottom sheet on mobile, centered card on desktop -->
-        <div class="relative bg-white rounded-t-2xl sm:rounded-xl shadow-xl w-full sm:max-w-md max-h-[92vh] overflow-y-auto">
+        <div class="relative bg-white dark:bg-gray-800 rounded-t-2xl sm:rounded-xl shadow-xl w-full sm:max-w-md max-h-[92vh] overflow-y-auto">
           <!-- Drag handle (mobile visual cue) -->
           <div class="sm:hidden flex justify-center pt-3 pb-1">
-            <div class="w-10 h-1 bg-gray-300 rounded-full"></div>
+            <div class="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
           </div>
 
           <!-- Header -->
-          <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-            <h3 class="text-lg font-semibold text-gray-900">{{ title }}</h3>
+          <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ title }}</h3>
             <button
-              class="p-2 text-gray-400 hover:text-gray-600 active:text-gray-600 rounded-lg transition-colors"
+              class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 active:text-gray-600 rounded-lg transition-colors"
               @click="close"
             >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

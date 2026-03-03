@@ -23,8 +23,6 @@ const monthLabel = computed(() => {
   return `${getMonthName(month - 1)} ${year}`
 })
 
-const isCurrentMonth = computed(() => selectedMonth.value === toMonthKey(new Date()))
-
 const prevMonth = () => {
   const [year, month] = selectedMonth.value.split('-').map(Number)
   const d = new Date(year, month - 2)
@@ -32,7 +30,6 @@ const prevMonth = () => {
 }
 
 const nextMonth = () => {
-  if (isCurrentMonth.value) return
   const [year, month] = selectedMonth.value.split('-').map(Number)
   const d = new Date(year, month)
   selectedMonth.value = toMonthKey(d)
@@ -52,13 +49,7 @@ const closePicker = () => {
   showMonthPicker.value = false
 }
 
-const isNextPickerYearDisabled = computed(() => pickerYear.value >= new Date().getFullYear())
-
-const isMonthDisabled = (i) => {
-  const n = new Date()
-  return pickerYear.value > n.getFullYear() ||
-    (pickerYear.value === n.getFullYear() && i > n.getMonth())
-}
+const isMonthDisabled = () => false
 
 const isMonthSelected = (i) => {
   const [year, month] = selectedMonth.value.split('-').map(Number)
@@ -214,13 +205,13 @@ const handleDelete = (id) => {
 <template>
   <div class="space-y-4 lg:space-y-6">
     <!-- Page Header -->
-    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+    <div class="flex items-center justify-end lg:justify-between gap-3">
       <!-- Title: hidden on mobile since MobileHeader already shows it -->
       <div class="hidden lg:block">
         <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
         <p class="text-sm text-gray-500 mt-1">Track your income and expenses</p>
       </div>
-      <BaseButton class="w-full lg:w-auto" @click="showAddModal = true">
+      <BaseButton class="w-auto" @click="showAddModal = true">
         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
         </svg>
@@ -260,13 +251,7 @@ const handleDelete = (id) => {
         </button>
 
         <button
-          :class="[
-            'p-2 rounded-lg transition-colors',
-            isCurrentMonth
-              ? 'text-gray-300 cursor-not-allowed'
-              : 'text-gray-500 hover:text-gray-900 active:text-gray-900 hover:bg-gray-100 active:bg-gray-100'
-          ]"
-          :disabled="isCurrentMonth"
+          class="p-2 rounded-lg transition-colors text-gray-500 hover:text-gray-900 active:text-gray-900 hover:bg-gray-100 active:bg-gray-100"
           @click="nextMonth"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -293,13 +278,7 @@ const handleDelete = (id) => {
             </button>
             <span class="text-sm font-semibold text-gray-900">{{ pickerYear }}</span>
             <button
-              :class="[
-                'p-2 rounded-lg transition-colors',
-                isNextPickerYearDisabled
-                  ? 'text-gray-300 cursor-not-allowed'
-                  : 'text-gray-500 hover:text-gray-900 active:text-gray-900 hover:bg-gray-100 active:bg-gray-100'
-              ]"
-              :disabled="isNextPickerYearDisabled"
+              class="p-2 rounded-lg transition-colors text-gray-500 hover:text-gray-900 active:text-gray-900 hover:bg-gray-100 active:bg-gray-100"
               @click="pickerYear++"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -1,73 +1,89 @@
-import { computed } from 'vue'
-import { useStorage } from './useStorage'
+import { ref, computed } from 'vue'
+import { db, auth } from '../firebase'
+import { onAuthStateChanged } from 'firebase/auth'
+import {
+  collection, onSnapshot, addDoc, updateDoc,
+  deleteDoc, doc, query, orderBy
+} from 'firebase/firestore'
 
-/**
- * Composable for managing savings goals
- * Provides CRUD operations and progress tracking
- */
+// ── Module-level singleton ────────────────────────────────────────────────────
+const goals = ref([])
+const loading = ref(true)
+let _unsubscribe = null
+
+// Re-initialize the Firestore listener on every auth state change.
+// This ensures data is cleared when a user logs out and reloaded for the new user.
+onAuthStateChanged(auth, (user) => {
+  if (_unsubscribe) {
+    _unsubscribe()
+    _unsubscribe = null
+  }
+  goals.value = []
+
+  if (user) {
+    loading.value = true
+    const q = query(
+      collection(db, 'users', user.uid, 'goals'),
+      orderBy('createdAt', 'desc')
+    )
+    _unsubscribe = onSnapshot(q, (snapshot) => {
+      goals.value = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
+      loading.value = false
+    })
+  } else {
+    loading.value = false
+  }
+})
+
+// ── Composable ────────────────────────────────────────────────────────────────
 export function useSavingsGoals() {
-  const goals = useStorage('money-tracking-goals', [])
+  const uid = () => auth.currentUser?.uid
 
-  // Generate unique ID
-  const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2)
-
-  // Add new goal
-  const addGoal = (goal) => {
-    goals.value.unshift({
-      id: generateId(),
+  const addGoal = async (goal) => {
+    await addDoc(collection(db, 'users', uid(), 'goals'), {
       ...goal,
       currentAmount: goal.currentAmount || 0,
       createdAt: new Date().toISOString()
     })
   }
 
-  // Update goal
-  const updateGoal = (id, updates) => {
-    const index = goals.value.findIndex(g => g.id === id)
-    if (index !== -1) {
-      goals.value[index] = { ...goals.value[index], ...updates }
-    }
+  const updateGoal = async (id, updates) => {
+    await updateDoc(doc(db, 'users', uid(), 'goals', id), updates)
   }
 
-  // Delete goal
-  const deleteGoal = (id) => {
-    const index = goals.value.findIndex(g => g.id === id)
-    if (index !== -1) {
-      goals.value.splice(index, 1)
-    }
+  const deleteGoal = async (id) => {
+    await deleteDoc(doc(db, 'users', uid(), 'goals', id))
   }
 
-  // Add money to goal
-  const addToGoal = (id, amount) => {
+  const addToGoal = async (id, amount) => {
     const goal = goals.value.find(g => g.id === id)
     if (goal) {
-      goal.currentAmount = Number(goal.currentAmount) + Number(amount)
+      await updateDoc(doc(db, 'users', uid(), 'goals', id), {
+        currentAmount: Number(goal.currentAmount) + Number(amount)
+      })
     }
   }
 
-  // Calculate progress percentage
   const getProgress = (goal) => {
     if (!goal.targetAmount || goal.targetAmount === 0) return 0
     return Math.min(100, (goal.currentAmount / goal.targetAmount) * 100)
   }
 
-  // Total saved across all goals
-  const totalSaved = computed(() => {
-    return goals.value.reduce((sum, g) => sum + Number(g.currentAmount), 0)
-  })
+  const totalSaved = computed(() =>
+    goals.value.reduce((sum, g) => sum + Number(g.currentAmount), 0)
+  )
 
-  // Total target across all goals
-  const totalTarget = computed(() => {
-    return goals.value.reduce((sum, g) => sum + Number(g.targetAmount), 0)
-  })
+  const totalTarget = computed(() =>
+    goals.value.reduce((sum, g) => sum + Number(g.targetAmount), 0)
+  )
 
-  // Completed goals count
-  const completedGoals = computed(() => {
-    return goals.value.filter(g => g.currentAmount >= g.targetAmount).length
-  })
+  const completedGoals = computed(() =>
+    goals.value.filter(g => g.currentAmount >= g.targetAmount).length
+  )
 
   return {
     goals,
+    loading,
     addGoal,
     updateGoal,
     deleteGoal,

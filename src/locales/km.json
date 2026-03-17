@@ -23,14 +23,16 @@
     "home": "ទំព័រដើម",
     "savings": "គោលដៅសន្សំ",
     "analytics": "វិភាគ",
-    "settings": "ការកំណត់"
+    "settings": "ការកំណត់",
+    "borrow": "ខ្ចី"
   },
   "pages": {
     "dashboard": "ទំព័រដើម",
     "savings": "គោលដៅសន្សំ",
     "analytics": "វិភាគ",
     "settings": "ការកំណត់",
-    "categories": "ប្រភេទ"
+    "categories": "ប្រភេទ",
+    "borrow": "ខ្ចី និងសង"
   },
   "analytics": "វិភាគ",
   "visualize_data": "មើលទិន្នន័យហិរញ្ញវត្ថុរបស់អ្នក",
@@ -49,9 +51,14 @@
   "user": "អ្នកប្រើ",
   "loading": "កំពុងផ្ទុក...",
   "amount": "ចំនួន",
+  "name": "ឈ្មោះ",
+  "name_placeholder": "បញ្ចូលឈ្មោះ (ជាជម្រើស)",
   "category": "ប្រភេទ",
   "description": "ការពិពណ៌នា",
+  "description_placeholder": "បញ្ចូលការពិពណ៌នា (ជាជម្រើស)",
   "date": "កាលបរិច្ឆេទ",
+  "view": "មើល",
+  "transaction_details": "ព័ត៌មានលម្អិតប្រតិបត្តិការ",
   "cancel": "បោះបង់",
   "update": "ធ្វើបច្ចុប្បន្នភាព",
   "add": "បន្ថែម",
@@ -70,6 +77,8 @@
   "all": "ទាំងអស់",
   "income": "ចំណូល",
   "expense": "ចំណាយ",
+  "borrow": "ខ្ចី",
+  "payback": "សង",
   "no_transactions_title": "មិនទាន់មានប្រតិបត្តិការ",
   "no_transactions_desc": "បន្ថែមប្រតិបត្តិការដំបូងរបស់អ្នកដើម្បីចាប់ផ្តើម",
   "savings": "គោលដៅសន្សំ",
@@ -95,6 +104,13 @@
   "remaining": "នៅសល់",
   "amount_to_add": "ចំនួនដែលត្រូវបន្ថែម",
   "add_money": "បន្ថែមប្រាក់",
-  "icon_label": "រូបតំណាង",
-  "or_type_custom_icon": "ឬវាយបញ្ចូលរូបតំណាងផ្ទាល់ខ្លួន"
+  "add_borrow_payback": "បន្ថែមខ្ចី/សង",
+  "borrow_payback": "ខ្ចី/សង",
+  "borrow_amount": "ចំនួនខ្ចី",
+  "payback_amount": "ចំនួនសង",
+  "borrow_records": "កំណត់ត្រាខ្ចី",
+  "payback_records": "កំណត់ត្រាសង",
+  "total_borrowed": "សរុបខ្ចី",
+  "total_paid_back": "សរុបសង",
+  "outstanding_debt": "បំណុលដែលនៅសល់"
 }

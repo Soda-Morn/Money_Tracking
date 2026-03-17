@@ -76,29 +76,24 @@ const handleSubmit = () => {
       </button>
     </div>
 
-    <!-- Amount -->
-    <BaseInput
-      v-model="form.amount"
-      type="number"
-      :label="t('amount')"
-      placeholder="0.00"
-      :required="true"
-    />
+    <div class="grid gap-4 sm:grid-cols-2">
+      <!-- Amount -->
+      <BaseInput
+        v-model="form.amount"
+        type="number"
+        :label="t('amount')"
+        placeholder="0.00"
+        :required="true"
+      />
 
-    <!-- Category -->
-    <BaseSelect
-      v-model="form.category"
-      :label="t('category')"
-      :options="categoryOptions"
-      :required="true"
-    />
-
-    <!-- Description -->
-    <BaseInput
-      v-model="form.description"
-      :label="t('description')"
-      placeholder="Enter description (optional)"
-    />
+      <!-- Category -->
+      <BaseSelect
+        v-model="form.category"
+        :label="t('category')"
+        :options="categoryOptions"
+        :required="true"
+      />
+    </div>
 
     <!-- Date -->
     <BaseInput
@@ -106,6 +101,13 @@ const handleSubmit = () => {
       type="date"
       :label="t('date')"
       :required="true"
+    />
+
+    <!-- Description -->
+    <BaseInput
+      v-model="form.description"
+      :label="t('description')"
+      :placeholder="t('description_placeholder')"
     />
 
     <!-- Actions -->

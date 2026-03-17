@@ -13,7 +13,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['edit', 'delete'])
+const emit = defineEmits(['view', 'edit', 'delete'])
 
 const { formatRelativeDate } = useFormat()
 const { t } = useI18n()
@@ -61,6 +61,7 @@ const groupedTransactions = computed(() => {
             v-for="transaction in group.items"
             :key="transaction.id"
             :transaction="transaction"
+            @view="emit('view', $event)"
             @edit="emit('edit', $event)"
             @delete="emit('delete', $event)"
           />

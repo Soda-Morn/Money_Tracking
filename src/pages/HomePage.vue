@@ -1,7 +1,8 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useTransactions } from '../composables/useTransactions'
 import { useFormat } from '../composables/useFormat'
+import { useCategories } from '../composables/useCategories'
 import SummaryCards from '../components/transactions/SummaryCards.vue'
 import TransactionList from '../components/transactions/TransactionList.vue'
 import TransactionForm from '../components/transactions/TransactionForm.vue'
@@ -11,7 +12,8 @@ import BaseModal from '../components/ui/BaseModal.vue'
 import { useI18n } from 'vue-i18n'
 
 const { transactions, addTransaction, updateTransaction, deleteTransaction } = useTransactions()
-const { getMonthName } = useFormat()
+const { getMonthName, formatCurrency, formatDate } = useFormat()
+const { getCategoryInfo } = useCategories()
 
 // ── Month filter ─────────────────────────────────────────────────────────────
 // null = show ALL transactions (default); 'YYYY-MM' = filter to that month
@@ -95,7 +97,19 @@ const filteredExpense = computed(() =>
     .reduce((sum, t) => sum + Number(t.amount), 0)
 )
 
-const filteredBalance = computed(() => filteredIncome.value - filteredExpense.value)
+const filteredBorrow = computed(() =>
+  filteredTransactions.value
+    .filter(t => t.type === 'borrow')
+    .reduce((sum, t) => sum + Number(t.amount), 0)
+)
+
+const filteredPayback = computed(() =>
+  filteredTransactions.value
+    .filter(t => t.type === 'payback')
+    .reduce((sum, t) => sum + Number(t.amount), 0)
+)
+
+const filteredBalance = computed(() => filteredIncome.value - filteredExpense.value + filteredBorrow.value - filteredPayback.value)
 
 // ── Transaction list controls ─────────────────────────────────────────────────
 const TYPE_OPTIONS = [
@@ -104,7 +118,11 @@ const TYPE_OPTIONS = [
   { label: t('expense'), value: 'expense' }
 ]
 const WEEK_DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
-const PAGE_SIZE = 8
+const pageSize = ref(5)
+
+const updatePageSize = () => {
+  pageSize.value = window.innerWidth >= 640 ? 10 : 5
+}
 
 const typeFilter     = ref('all')
 const dateFilter     = ref(null)   // 'YYYY-MM-DD' | null
@@ -119,6 +137,16 @@ watch(selectedMonth, () => {
 })
 // When type or date filter changes: reset page only
 watch([typeFilter, dateFilter], () => { currentPage.value = 1 })
+watch(pageSize, () => { currentPage.value = 1 })
+
+onMounted(() => {
+  updatePageSize()
+  window.addEventListener('resize', updatePageSize, { passive: true })
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', updatePageSize)
+})
 
 const typeFilteredTransactions = computed(() => {
   if (typeFilter.value === 'all') return filteredTransactions.value
@@ -131,12 +159,16 @@ const dateFilteredTransactions = computed(() => {
 })
 
 const totalPages = computed(() =>
-  Math.max(1, Math.ceil(dateFilteredTransactions.value.length / PAGE_SIZE))
+  Math.max(1, Math.ceil(dateFilteredTransactions.value.length / pageSize.value))
 )
 
 const paginatedTransactions = computed(() => {
-  const start = (currentPage.value - 1) * PAGE_SIZE
-  return dateFilteredTransactions.value.slice(start, start + PAGE_SIZE)
+  const start = (currentPage.value - 1) * pageSize.value
+  return dateFilteredTransactions.value.slice(start, start + pageSize.value)
+})
+
+watch(totalPages, (tp) => {
+  if (currentPage.value > tp) currentPage.value = tp
 })
 
 // ── Calendar (date filter) — only active when a month is selected ─────────────
@@ -194,7 +226,9 @@ const visiblePageNumbers = computed(() => {
 // ── Modal state ───────────────────────────────────────────────────────────────
 const showAddModal  = ref(false)
 const showEditModal = ref(false)
+const showViewModal = ref(false)
 const editingTransaction = ref(null)
+const viewingTransaction = ref(null)
 
 const handleAdd = (data) => {
   addTransaction(data)
@@ -204,6 +238,11 @@ const handleAdd = (data) => {
 const handleEdit = (transaction) => {
   editingTransaction.value = transaction
   showEditModal.value = true
+}
+
+const handleView = (transaction) => {
+  viewingTransaction.value = transaction
+  showViewModal.value = true
 }
 
 const handleUpdate = (data) => {
@@ -458,6 +497,7 @@ const handleDelete = (id) => {
       <!-- Transaction List -->
       <TransactionList
         :transactions="paginatedTransactions"
+        @view="handleView"
         @edit="handleEdit"
         @delete="handleDelete"
       />
@@ -527,6 +567,44 @@ const handleDelete = (id) => {
         @submit="handleUpdate"
         @cancel="showEditModal = false"
       />
+    </BaseModal>
+
+    <!-- View Transaction Modal -->
+    <BaseModal :show="showViewModal" :title="t('transaction_details')" @close="showViewModal = false">
+      <div v-if="viewingTransaction" class="space-y-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="p-3 rounded-xl bg-gray-50 dark:bg-gray-700/40">
+            <div class="text-xs text-gray-500 dark:text-gray-400">{{ t('category') }}</div>
+            <div class="font-medium text-gray-900 dark:text-white truncate">
+              {{ getCategoryInfo(viewingTransaction.category, viewingTransaction.type).label }}
+            </div>
+          </div>
+          <div class="p-3 rounded-xl bg-gray-50 dark:bg-gray-700/40">
+            <div class="text-xs text-gray-500 dark:text-gray-400">{{ t('amount') }}</div>
+            <div :class="[
+              'font-semibold',
+              viewingTransaction.type === 'income' ? 'text-green-600' : 'text-red-600'
+            ]">
+              {{ viewingTransaction.type === 'income' ? '+' : '-' }}{{ formatCurrency(viewingTransaction.amount) }}
+            </div>
+          </div>
+          <div class="p-3 rounded-xl bg-gray-50 dark:bg-gray-700/40">
+            <div class="text-xs text-gray-500 dark:text-gray-400">{{ t('date') }}</div>
+            <div class="font-medium text-gray-900 dark:text-white">
+              {{ formatDate(viewingTransaction.date) }}
+            </div>
+          </div>
+        </div>
+
+        <div v-if="viewingTransaction.description" class="p-3 rounded-xl bg-gray-50 dark:bg-gray-700/40">
+          <div class="text-xs text-gray-500 dark:text-gray-400">{{ t('description') }}</div>
+          <div class="text-gray-900 dark:text-white whitespace-pre-wrap">{{ viewingTransaction.description }}</div>
+        </div>
+
+        <div class="pt-1">
+          <BaseButton variant="secondary" full-width @click="showViewModal = false">{{ t('cancel') }}</BaseButton>
+        </div>
+      </div>
     </BaseModal>
   </div>
 </template>

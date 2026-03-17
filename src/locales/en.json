@@ -23,14 +23,16 @@
     "home": "Home",
     "savings": "Savings",
     "analytics": "Analytics",
-    "settings": "Settings"
+    "settings": "Settings",
+    "borrow": "Borrow"
   },
   "pages": {
     "dashboard": "Dashboard",
     "savings": "Savings Goals",
     "analytics": "Analytics",
     "settings": "Settings",
-    "categories": "Categories"
+    "categories": "Categories",
+    "borrow": "Borrow & Payback"
   },
   "analytics": "Analytics",
   "visualize_data": "Visualize your financial data",
@@ -49,9 +51,14 @@
   "user": "User",
   "loading": "Loading...",
   "amount": "Amount",
+  "name": "Name",
+  "name_placeholder": "Enter name (optional)",
   "category": "Category",
   "description": "Description",
+  "description_placeholder": "Enter description (optional)",
   "date": "Date",
+  "view": "View",
+  "transaction_details": "Transaction Details",
   "cancel": "Cancel",
   "update": "Update",
   "add": "Add",
@@ -70,6 +77,8 @@
   "all": "All",
   "income": "Income",
   "expense": "Expense",
+  "borrow": "Borrow",
+  "payback": "Payback",
   "no_transactions_title": "No transactions yet",
   "no_transactions_desc": "Add your first transaction to get started",
   "savings": "Savings Goals",
@@ -95,6 +104,13 @@
   "remaining": "Remaining",
   "amount_to_add": "Amount to Add",
   "add_money": "Add Money",
-  "icon_label": "Icon",
-  "or_type_custom_icon": "Or type a custom icon"
+  "add_borrow_payback": "Add Borrow/Payback",
+  "borrow_payback": "Borrow/Payback",
+  "borrow_amount": "Borrow Amount",
+  "payback_amount": "Payback Amount",
+  "borrow_records": "Borrow Records",
+  "payback_records": "Payback Records",
+  "total_borrowed": "Total Borrowed",
+  "total_paid_back": "Total Paid Back",
+  "outstanding_debt": "Outstanding Debt"
 }

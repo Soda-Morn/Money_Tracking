@@ -72,7 +72,19 @@ export function useTransactions() {
       .reduce((sum, t) => sum + Number(t.amount), 0)
   )
 
-  const totalBalance = computed(() => totalIncome.value - totalExpense.value)
+  const totalBorrow = computed(() =>
+    transactions.value
+      .filter(t => t.type === 'borrow')
+      .reduce((sum, t) => sum + Number(t.amount), 0)
+  )
+
+  const totalPayback = computed(() =>
+    transactions.value
+      .filter(t => t.type === 'payback')
+      .reduce((sum, t) => sum + Number(t.amount), 0)
+  )
+
+  const totalBalance = computed(() => totalIncome.value - totalExpense.value + totalBorrow.value - totalPayback.value)
 
   const transactionsByDate = computed(() => {
     const grouped = {}
@@ -91,7 +103,13 @@ export function useTransactions() {
     const expense = dayTransactions
       .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + Number(t.amount), 0)
-    return { income, expense, balance: income - expense }
+    const borrow = dayTransactions
+      .filter(t => t.type === 'borrow')
+      .reduce((sum, t) => sum + Number(t.amount), 0)
+    const payback = dayTransactions
+      .filter(t => t.type === 'payback')
+      .reduce((sum, t) => sum + Number(t.amount), 0)
+    return { income, expense, borrow, payback, balance: income - expense + borrow - payback }
   }
 
   const getMonthlyData = (year, month) => {
@@ -110,6 +128,8 @@ export function useTransactions() {
     getTransactionsByDateRange,
     totalIncome,
     totalExpense,
+    totalBorrow,
+    totalPayback,
     totalBalance,
     transactionsByDate,
     getDailySummary,

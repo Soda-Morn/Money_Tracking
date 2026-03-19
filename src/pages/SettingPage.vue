@@ -82,7 +82,7 @@ const menuItems = computed(() => [
           </div>
           <select
             v-model="locale"
-            class="bg-white dark:bg-gray-800 border rounded px-2 py-1 text-sm"
+            class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="en">{{ t('english') }}</option>
             <option value="km">{{ t('khmer') }}</option>

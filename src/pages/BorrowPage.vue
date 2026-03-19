@@ -387,7 +387,7 @@ const closeModal = () => {
 
                 <div class="relative">
                   <button
-                    class="p-2 text-gray-300 hover:text-gray-600 dark:hover:text-gray-200 active:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                    class="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 active:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
                     :aria-expanded="openMenuId === transaction.id ? 'true' : 'false'"
                     aria-haspopup="menu"
                     @click.stop="toggleMenu(transaction.id)"
@@ -442,7 +442,7 @@ const closeModal = () => {
         </div>
 
         <!-- Desktop table -->
-        <div class="hidden md:block overflow-x-auto">
+        <div class="hidden md:block">
           <table class="w-full text-sm">
             <thead>
               <tr class="border-b border-gray-200 dark:border-gray-700">
@@ -482,7 +482,7 @@ const closeModal = () => {
                 <td class="py-3 px-2 text-right">
                   <div class="relative inline-block">
                     <button
-                      class="p-2 text-gray-300 hover:text-gray-600 dark:hover:text-gray-200 active:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                      class="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 active:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
                       :aria-expanded="openMenuId === transaction.id ? 'true' : 'false'"
                       aria-haspopup="menu"
                       @click.stop="toggleMenu(transaction.id)"
@@ -621,7 +621,7 @@ const closeModal = () => {
 
                 <div class="relative">
                   <button
-                    class="p-2 text-gray-300 hover:text-gray-600 dark:hover:text-gray-200 active:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                    class="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 active:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
                     :aria-expanded="openMenuId === transaction.id ? 'true' : 'false'"
                     aria-haspopup="menu"
                     @click.stop="toggleMenu(transaction.id)"
@@ -676,7 +676,7 @@ const closeModal = () => {
         </div>
 
         <!-- Desktop table -->
-        <div class="hidden md:block overflow-x-auto">
+        <div class="hidden md:block">
           <table class="w-full text-sm">
             <thead>
               <tr class="border-b border-gray-200 dark:border-gray-700">
@@ -716,7 +716,7 @@ const closeModal = () => {
                 <td class="py-3 px-2 text-right">
                   <div class="relative inline-block">
                     <button
-                      class="p-2 text-gray-300 hover:text-gray-600 dark:hover:text-gray-200 active:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                      class="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 active:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
                       :aria-expanded="openMenuId === transaction.id ? 'true' : 'false'"
                       aria-haspopup="menu"
                       @click.stop="toggleMenu(transaction.id)"

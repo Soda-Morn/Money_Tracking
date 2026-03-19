@@ -25,20 +25,25 @@ watch(locale, () => {
 
 <template>
   <!-- Auth state loading splash -->
-  <div v-if="authLoading" class="min-h-screen bg-gray-50 flex items-center justify-center">
-    <div class="flex flex-col items-center gap-3">
-      <div class="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-      <p class="text-sm text-gray-400">{{ t('loading') }}</p>
+  <div v-if="authLoading" class="min-h-screen bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 flex items-center justify-center">
+    <div class="flex flex-col items-center gap-4">
+      <div class="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-3xl flex items-center justify-center shadow-xl mb-2">
+        <svg class="w-9 h-9 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </div>
+      <div class="w-8 h-8 border-3 border-white/30 border-t-white rounded-full animate-spin"></div>
+      <p class="text-sm text-white/70 font-medium tracking-wide">{{ t('loading') }}</p>
     </div>
   </div>
 
   <template v-else>
     <!-- Authenticated: show full app layout -->
-    <div v-if="currentUser" class="min-h-screen bg-gray-100 dark:bg-gray-900">
+    <div v-if="currentUser" class="min-h-screen bg-slate-100 dark:bg-gray-950">
       <Navbar />
       <MobileHeader />
       <main class="lg:pl-64 lg:pb-0 main-mobile-pb" :class="{ 'locale-fading': isFading }">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <router-view v-slot="{ Component }">
             <transition name="page" mode="out-in">
               <component :is="Component" />
@@ -61,7 +66,7 @@ watch(locale, () => {
 
 @media (min-width: 1024px) {
   .main-mobile-pb {
-    padding-bottom: 0;
+    padding-bottom: 2rem;
   }
 }
 
@@ -71,11 +76,11 @@ watch(locale, () => {
 }
 .page-enter-from {
   opacity: 0;
-  transform: translateY(10px);
+  transform: translateY(8px);
 }
 .page-leave-to {
   opacity: 0;
-  transform: translateY(-10px);
+  transform: translateY(-4px);
 }
 
 /* Smooth fade when switching language */

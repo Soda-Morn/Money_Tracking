@@ -239,16 +239,16 @@ const handleDelete = async (id) => {
         <div class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-700">
           <span class="text-3xl">{{ addForm.icon }}</span>
           <div>
-            <p class="font-medium text-gray-900 dark:text-white">{{ addForm.label || 'Category Name' }}</p>
-            <p class="text-xs text-gray-400 capitalize">{{ addForm.type }}</p>
+            <p class="font-medium text-gray-900 dark:text-white">{{ addForm.label || t('category_name') }}</p>
+            <p class="text-xs text-gray-400 capitalize">{{ t(addForm.type) }}</p>
           </div>
         </div>
 
         <!-- Actions -->
         <div class="flex gap-3">
-          <BaseButton variant="secondary" @click="showAddModal = false" full-width>Cancel</BaseButton>
+          <BaseButton variant="secondary" @click="showAddModal = false" full-width>{{ t('cancel') }}</BaseButton>
           <BaseButton :disabled="!addForm.label.trim() || isAdding" @click="handleAddCategory" full-width>
-            {{ isAdding ? 'Adding...' : 'Add Category' }}
+            {{ isAdding ? t('loading') : t('add_category') }}
           </BaseButton>
         </div>
       </div>

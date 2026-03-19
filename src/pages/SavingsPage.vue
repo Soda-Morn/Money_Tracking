@@ -89,30 +89,34 @@ const handleAddMoneySubmit = (amount) => {
     </div>
 
     <!-- Summary Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <BaseCard>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">{{ t('total_saved') }}</p>
-        <p class="text-2xl font-bold text-blue-600">{{ formatCurrency(totalSaved) }}</p>
-      </BaseCard>
-      <BaseCard>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">{{ t('total_target') }}</p>
-        <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ formatCurrency(totalTarget) }}</p>
-      </BaseCard>
-      <BaseCard>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">{{ t('completed_goals') }}</p>
-        <p class="text-2xl font-bold text-green-600">{{ completedGoals }} / {{ goals.length }}</p>
-      </BaseCard>
+    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+      <!-- Total Saved — gradient hero -->
+      <div class="relative overflow-hidden col-span-2 sm:col-span-1 bg-gradient-to-br from-blue-600 via-blue-600 to-indigo-700 rounded-2xl p-4 shadow-lg shadow-blue-500/25">
+        <div class="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -translate-y-1/3 translate-x-1/3 pointer-events-none"></div>
+        <p class="text-xs font-semibold text-blue-200 uppercase tracking-wider mb-1.5">{{ t('total_saved') }}</p>
+        <p class="text-xl font-bold text-white tracking-tight">{{ formatCurrency(totalSaved) }}</p>
+      </div>
+      <!-- Total Target -->
+      <div class="relative overflow-hidden bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-100 dark:border-gray-800/80 shadow-sm">
+        <p class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1.5">{{ t('total_target') }}</p>
+        <p class="text-xl font-bold text-gray-900 dark:text-white tracking-tight">{{ formatCurrency(totalTarget) }}</p>
+      </div>
+      <!-- Completed Goals -->
+      <div class="relative overflow-hidden bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-100 dark:border-gray-800/80 shadow-sm">
+        <p class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1.5">{{ t('completed_goals') }}</p>
+        <p class="text-xl font-bold text-emerald-600 dark:text-emerald-400 tracking-tight">{{ completedGoals }} <span class="text-gray-400 dark:text-gray-600 font-medium text-base">/ {{ goals.length }}</span></p>
+      </div>
     </div>
 
     <!-- Overall Progress -->
     <BaseCard v-if="goals.length > 0">
-      <div class="flex justify-between items-center mb-2">
-        <h3 class="font-medium text-gray-900 dark:text-white">{{ t('overall_progress') }}</h3>
-        <span class="text-sm text-gray-500 dark:text-gray-400">{{ Math.round(overallProgress) }}%</span>
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="font-semibold text-gray-900 dark:text-white">{{ t('overall_progress') }}</h3>
+        <span class="text-sm font-bold text-blue-600 dark:text-blue-400">{{ Math.round(overallProgress) }}%</span>
       </div>
-      <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+      <div class="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-2.5 overflow-hidden">
         <div
-          class="bg-blue-600 h-3 rounded-full transition-all duration-500"
+          class="bg-gradient-to-r from-blue-500 to-indigo-600 h-2.5 rounded-full transition-all duration-700 ease-out shadow-sm shadow-blue-400/30"
           :style="{ width: `${Math.min(100, overallProgress)}%` }"
         ></div>
       </div>

@@ -1,10 +1,13 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTheme } from '../composables/useTheme'
 import { useI18n } from 'vue-i18n'
 import { useLanguage } from '../composables/useLanguage'
 import { useCurrency, USD_TO_KHR } from '../composables/useCurrency'
+import { useBudget } from '../composables/useBudget'
+import { defaultExpenseCategories } from '../composables/useCategories'
+import { useFormat } from '../composables/useFormat'
 import BaseCard from '../components/ui/BaseCard.vue'
 
 const router = useRouter()
@@ -12,6 +15,29 @@ const { isDark, toggleTheme } = useTheme()
 const { t } = useI18n()
 const { locale } = useLanguage()
 const { currency } = useCurrency()
+const { budgets, setBudget, removeBudget } = useBudget()
+const { formatCurrency } = useFormat()
+
+const formatBudget = (amount) => formatCurrency(amount)
+
+// Budget inline editing
+const editingBudgetCategory = ref(null)
+const editingBudgetAmount = ref('')
+
+const openBudgetEdit = (cat) => {
+  editingBudgetCategory.value = cat.value
+  editingBudgetAmount.value = budgets.value[cat.value] ? String(budgets.value[cat.value]) : ''
+}
+
+const saveBudget = async () => {
+  const amount = parseFloat(editingBudgetAmount.value)
+  if (!isNaN(amount) && amount > 0) {
+    await setBudget(editingBudgetCategory.value, amount)
+  }
+  editingBudgetCategory.value = null
+}
+
+const cancelBudgetEdit = () => { editingBudgetCategory.value = null }
 
 const menuItems = computed(() => [
   {
@@ -133,6 +159,69 @@ const menuItems = computed(() => [
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
           </svg>
         </button>
+      </div>
+    </BaseCard>
+
+    <!-- ── Monthly Budget ──────────────────────────────────────────────────── -->
+    <BaseCard padding="p-0">
+      <div class="px-4 pt-4 pb-3">
+        <h2 class="text-base font-semibold text-gray-900 dark:text-white">{{ t('monthly_budget') }}</h2>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{{ t('budget_desc') }}</p>
+      </div>
+
+      <div class="divide-y divide-gray-100 dark:divide-gray-700">
+        <div
+          v-for="cat in defaultExpenseCategories"
+          :key="cat.value"
+          class="px-4 py-3"
+        >
+          <!-- View row -->
+          <div v-if="editingBudgetCategory !== cat.value" class="flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <span class="text-xl w-8 text-center">{{ cat.icon }}</span>
+              <div>
+                <p class="text-sm font-medium text-gray-900 dark:text-white">{{ cat.label }}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                  {{ budgets[cat.value] ? formatBudget(budgets[cat.value]) : t('no_budget_set') }}
+                </p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button
+                v-if="budgets[cat.value]"
+                class="text-xs text-red-500 hover:text-red-700 dark:hover:text-red-400 px-2 py-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                @click="removeBudget(cat.value)"
+              >{{ t('delete') }}</button>
+              <button
+                class="text-xs text-blue-600 dark:text-blue-400 font-medium px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
+                @click="openBudgetEdit(cat)"
+              >{{ budgets[cat.value] ? t('update') : t('set_budget') }}</button>
+            </div>
+          </div>
+
+          <!-- Inline edit row -->
+          <div v-else class="flex items-center gap-2">
+            <span class="text-xl w-8 text-center shrink-0">{{ cat.icon }}</span>
+            <input
+              v-model="editingBudgetAmount"
+              type="number"
+              min="0"
+              :placeholder="currency === 'KHR' ? '0 ៛' : '0.00'"
+              class="flex-1 px-3 py-1.5 text-sm rounded-xl border border-blue-300 dark:border-blue-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              autofocus
+              @keyup.enter="saveBudget"
+              @keyup.escape="cancelBudgetEdit"
+            />
+            <button
+              class="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors"
+              @click="saveBudget"
+            >{{ t('add') }}</button>
+            <button
+              class="px-3 py-1.5 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
+              @click="cancelBudgetEdit"
+            >✕</button>
+          </div>
+        </div>
       </div>
     </BaseCard>
   </div>

@@ -74,6 +74,101 @@ const categoryLabels = {
   other: 'Other'
 }
 
+// ── Spending Insights ─────────────────────────────────────────────────────────
+const prevMonthTransactions = computed(() => {
+  const pm = currentMonth.value === 0 ? 11 : currentMonth.value - 1
+  const py = currentMonth.value === 0 ? currentYear.value - 1 : currentYear.value
+  return transactions.value.filter(t => {
+    const d = new Date(t.date)
+    return d.getMonth() === pm && d.getFullYear() === py
+  })
+})
+
+const prevMonthExpense = computed(() =>
+  prevMonthTransactions.value
+    .filter(t => t.type === 'expense')
+    .reduce((sum, t) => sum + Number(t.amount), 0)
+)
+
+const topMonthlyCategory = computed(() => {
+  const grouped = {}
+  monthlyTransactions.value.filter(t => t.type === 'expense').forEach(t => {
+    grouped[t.category] = (grouped[t.category] || 0) + Number(t.amount)
+  })
+  const sorted = Object.entries(grouped).sort(([, a], [, b]) => b - a)
+  if (!sorted.length) return null
+  const [category, amount] = sorted[0]
+  return { category, amount, label: categoryLabels[category] || category }
+})
+
+const expenseChange = computed(() => {
+  if (!prevMonthExpense.value) return null
+  const change = ((monthlyExpense.value - prevMonthExpense.value) / prevMonthExpense.value) * 100
+  return Math.round(change)
+})
+
+const savingsRate = computed(() => {
+  if (!monthlyIncome.value) return null
+  return Math.round(((monthlyIncome.value - monthlyExpense.value) / monthlyIncome.value) * 100)
+})
+
+const avgDailySpend = computed(() => {
+  const daysInMonth = new Date(currentYear.value, currentMonth.value + 1, 0).getDate()
+  const today = new Date()
+  const isCurrentMonth = today.getMonth() === currentMonth.value && today.getFullYear() === currentYear.value
+  const days = isCurrentMonth ? today.getDate() : daysInMonth
+  return days > 0 ? monthlyExpense.value / days : 0
+})
+
+const insights = computed(() => {
+  const list = []
+  if (topMonthlyCategory.value) {
+    list.push({
+      icon: '🏆',
+      label: t('insight_top_category'),
+      value: topMonthlyCategory.value.label,
+      sub: formatCurrency(topMonthlyCategory.value.amount),
+      color: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800'
+    })
+  }
+  if (expenseChange.value !== null) {
+    const up = expenseChange.value > 0
+    list.push({
+      icon: up ? '📈' : '📉',
+      label: t('insight_vs_last_month'),
+      value: (up ? '+' : '') + expenseChange.value + '%',
+      sub: t('insight_spending'),
+      color: up
+        ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+        : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+    })
+  }
+  if (savingsRate.value !== null) {
+    list.push({
+      icon: '💰',
+      label: t('insight_savings_rate'),
+      value: savingsRate.value + '%',
+      sub: t('insight_of_income'),
+      color: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
+    })
+  }
+  list.push({
+    icon: '📅',
+    label: t('insight_avg_daily'),
+    value: formatCurrency(avgDailySpend.value),
+    sub: t('insight_per_day'),
+    color: 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800'
+  })
+  list.push({
+    icon: '🔢',
+    label: t('insight_transactions'),
+    value: String(monthlyTransactions.value.length),
+    sub: t('insight_this_month'),
+    color: 'bg-gray-50 dark:bg-gray-700/40 border-gray-200 dark:border-gray-600'
+  })
+  return list
+})
+
 // Navigate months
 const prevMonth = () => {
   if (currentMonth.value === 0) {
@@ -148,6 +243,26 @@ const nextMonth = () => {
           </div>
         </div>
       </BaseCard>
+
+      <!-- ── Spending Insights ──────────────────────────────────────────────── -->
+      <div>
+        <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3 px-0.5">
+          {{ t('spending_insights') }}
+        </h3>
+        <!-- Horizontal scroll on mobile, grid on desktop -->
+        <div class="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-3 lg:grid-cols-5 sm:overflow-visible no-scrollbar">
+          <div
+            v-for="insight in insights"
+            :key="insight.label"
+            :class="['flex-shrink-0 w-36 sm:w-auto rounded-2xl border p-3.5', insight.color]"
+          >
+            <div class="text-2xl mb-2">{{ insight.icon }}</div>
+            <p class="text-xs text-gray-500 dark:text-gray-400 font-medium leading-tight">{{ insight.label }}</p>
+            <p class="text-lg font-bold text-gray-900 dark:text-white mt-0.5 leading-tight truncate">{{ insight.value }}</p>
+            <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{{ insight.sub }}</p>
+          </div>
+        </div>
+      </div>
 
       <!-- Charts Grid -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">

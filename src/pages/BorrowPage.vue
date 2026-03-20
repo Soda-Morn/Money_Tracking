@@ -62,6 +62,28 @@ const paybackTransactions = computed(() =>
   transactions.value.filter(t => t.type === 'payback')
 )
 
+// ── Person Summary ────────────────────────────────────────────────────────────
+const showPersonSummary = ref(true)
+
+const personSummary = computed(() => {
+  const map = {}
+  borrowTransactions.value.forEach(t => {
+    const name = (t.name || '').trim()
+    if (!name) return
+    if (!map[name]) map[name] = { name, borrowed: 0, paid: 0 }
+    map[name].borrowed += Number(t.amount)
+  })
+  paybackTransactions.value.forEach(t => {
+    const name = (t.name || '').trim()
+    if (!name) return
+    if (!map[name]) map[name] = { name, borrowed: 0, paid: 0 }
+    map[name].paid += Number(t.amount)
+  })
+  return Object.values(map)
+    .map(p => ({ ...p, net: p.borrowed - p.paid }))
+    .sort((a, b) => Math.abs(b.net) - Math.abs(a.net))
+})
+
 // Name filter
 const filterName = ref('')
 
@@ -226,21 +248,9 @@ const closeModal = () => {
 <template>
   <div class="space-y-6">
     <!-- Page Header -->
-    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-      <div class="min-w-0">
-        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
-          {{ t('pages.borrow') }}
-        </h1>
-        <p class="text-gray-600 dark:text-gray-400 mt-1">
-          {{ t('track_income_expenses') }}
-        </p>
-      </div>
-      <BaseButton @click="openAddModal" class="flex items-center gap-2 w-full sm:w-auto">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-        </svg>
-        {{ t('add_borrow_payback') }}
-      </BaseButton>
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ t('pages.borrow') }}</h1>
+      <p class="text-gray-600 dark:text-gray-400 mt-1">{{ t('track_income_expenses') }}</p>
     </div>
 
     <!-- Summary Cards -->
@@ -391,6 +401,107 @@ const closeModal = () => {
         </div>
       </BaseCard>
     </div>
+
+    <!-- ── Person Summary Card ──────────────────────────────────────────────── -->
+    <BaseCard v-if="personSummary.length > 0" padding="p-0">
+      <!-- Header -->
+      <button
+        class="w-full flex items-center justify-between px-4 py-3 text-left"
+        @click="showPersonSummary = !showPersonSummary"
+      >
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 bg-blue-100 dark:bg-blue-900/40 rounded-xl flex items-center justify-center">
+            <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </div>
+          <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('person_summary') }}</span>
+          <span class="text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full">{{ personSummary.length }}</span>
+        </div>
+        <svg
+          class="w-4 h-4 text-gray-400 transition-transform duration-200"
+          :class="showPersonSummary ? 'rotate-180' : ''"
+          fill="none" stroke="currentColor" viewBox="0 0 24 24"
+        >
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      <!-- Collapsible Body -->
+      <div v-if="showPersonSummary" class="border-t border-gray-100 dark:border-gray-700">
+        <!-- Desktop table header -->
+        <div class="hidden sm:grid grid-cols-4 gap-2 px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/40">
+          <span>{{ t('name') }}</span>
+          <span class="text-right">{{ t('total_borrowed') }}</span>
+          <span class="text-right">{{ t('total_paid_back') }}</span>
+          <span class="text-right">{{ t('net_balance') }}</span>
+        </div>
+
+        <div class="divide-y divide-gray-100 dark:divide-gray-700/60">
+          <button
+            v-for="person in personSummary"
+            :key="person.name"
+            class="w-full px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors text-left"
+            @click="filterName = filterName === person.name ? '' : person.name"
+          >
+            <!-- Mobile layout -->
+            <div class="sm:hidden flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                  {{ person.name.charAt(0).toUpperCase() }}
+                </div>
+                <div>
+                  <p class="text-sm font-medium text-gray-900 dark:text-white">{{ person.name }}</p>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('total_borrowed') }}: {{ formatCurrency(person.borrowed) }}</p>
+                </div>
+              </div>
+              <div class="text-right">
+                <span
+                  v-if="person.net === 0"
+                  class="inline-block text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
+                >{{ t('settled') }}</span>
+                <span v-else class="text-sm font-bold" :class="person.net > 0 ? 'text-orange-500' : 'text-green-600'">
+                  {{ formatCurrency(Math.abs(person.net)) }}
+                </span>
+                <p v-if="person.net !== 0" class="text-xs mt-0.5" :class="person.net > 0 ? 'text-orange-400' : 'text-green-500'">
+                  {{ person.net > 0 ? t('owes_you') : t('you_owe') }}
+                </p>
+              </div>
+            </div>
+
+            <!-- Desktop layout -->
+            <div class="hidden sm:grid grid-cols-4 gap-2 items-center">
+              <div class="flex items-center gap-2">
+                <div class="w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                  {{ person.name.charAt(0).toUpperCase() }}
+                </div>
+                <span class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ person.name }}</span>
+                <span
+                  v-if="filterName === person.name"
+                  class="text-xs px-1.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
+                >●</span>
+              </div>
+              <span class="text-sm text-right text-gray-600 dark:text-gray-400">{{ formatCurrency(person.borrowed) }}</span>
+              <span class="text-sm text-right text-gray-600 dark:text-gray-400">{{ formatCurrency(person.paid) }}</span>
+              <div class="text-right">
+                <span
+                  v-if="person.net === 0"
+                  class="inline-block text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
+                >{{ t('settled') }}</span>
+                <div v-else>
+                  <p class="text-sm font-bold" :class="person.net > 0 ? 'text-orange-500' : 'text-green-600'">
+                    {{ formatCurrency(Math.abs(person.net)) }}
+                  </p>
+                  <p class="text-xs" :class="person.net > 0 ? 'text-orange-400' : 'text-green-500'">
+                    {{ person.net > 0 ? t('owes_you') : t('you_owe') }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </button>
+        </div>
+      </div>
+    </BaseCard>
 
     <!-- Name Filter -->
     <div class="flex items-center gap-2">

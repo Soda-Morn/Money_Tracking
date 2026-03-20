@@ -3,6 +3,8 @@ import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useTransactions } from '../composables/useTransactions'
 import { useFormat } from '../composables/useFormat'
 import { useCategories } from '../composables/useCategories'
+import { useBudget } from '../composables/useBudget'
+import { defaultExpenseCategories } from '../composables/useCategories'
 import SummaryCards from '../components/transactions/SummaryCards.vue'
 import TransactionList from '../components/transactions/TransactionList.vue'
 import TransactionForm from '../components/transactions/TransactionForm.vue'
@@ -17,6 +19,7 @@ const { transactions, addTransaction, updateTransaction, deleteTransaction } = u
 const toast = useToast()
 const { getMonthName, formatCurrency, formatDate } = useFormat()
 const { getCategoryInfo } = useCategories()
+const { budgets } = useBudget()
 
 // ── Month filter ─────────────────────────────────────────────────────────────
 // null = show ALL transactions (default); 'YYYY-MM' = filter to that month
@@ -211,6 +214,39 @@ const selectDay = (day) => {
 
 const clearDateFilter = () => { dateFilter.value = null }
 
+// ── Budget progress ───────────────────────────────────────────────────────────
+const showBudgetOverview = ref(true)
+
+// Always use current real month for budget (not the month filter)
+const budgetMonthKey = toMonthKey(now)
+
+const budgetProgress = computed(() => {
+  const currentMonthExpenses = transactions.value.filter(
+    t => t.type === 'expense' && t.date.startsWith(budgetMonthKey)
+  )
+  return defaultExpenseCategories
+    .filter(cat => budgets.value[cat.value])
+    .map(cat => {
+      const spent = currentMonthExpenses
+        .filter(t => t.category === cat.value)
+        .reduce((sum, t) => sum + Number(t.amount), 0)
+      const limit = budgets.value[cat.value]
+      const pct = Math.min(100, Math.round((spent / limit) * 100))
+      return { ...cat, spent, limit, pct }
+    })
+})
+
+// Toast warning once per session when a category hits 80%
+const warnedCategories = new Set()
+watch(budgetProgress, (items) => {
+  items.forEach(item => {
+    if (item.pct >= 80 && !warnedCategories.has(item.value)) {
+      warnedCategories.add(item.value)
+      toast.info(`${item.icon} ${item.label}: ${item.pct}% ${t('budget_warning')}`)
+    }
+  })
+}, { immediate: false })
+
 // ── Pagination — visible page numbers with ellipsis ──────────────────────────
 const visiblePageNumbers = computed(() => {
   const total = totalPages.value
@@ -288,17 +324,9 @@ const cancelDelete = () => {
 <template>
   <div class="space-y-4 lg:space-y-6">
     <!-- Page Header -->
-    <div class="flex items-center justify-end lg:justify-between gap-3">
-      <div class="hidden lg:block">
-        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ t('pages.dashboard') }}</h1>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ t('track_income_expenses') }}</p>
-      </div>
-      <BaseButton class="w-auto" @click="showAddModal = true">
-        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-        </svg>
-        {{ t('add_transaction') }}
-      </BaseButton>
+    <div class="hidden lg:block">
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ t('pages.dashboard') }}</h1>
+      <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ t('track_income_expenses') }}</p>
     </div>
 
     <!-- Month Filter Navigator -->
@@ -421,6 +449,59 @@ const cancelDelete = () => {
       :total-expense="filteredExpense"
       :total-balance="filteredBalance"
     />
+
+    <!-- ── Budget Overview ──────────────────────────────────────────────────── -->
+    <BaseCard v-if="budgetProgress.length > 0" padding="p-0">
+      <button
+        class="w-full flex items-center justify-between px-4 py-3 text-left"
+        @click="showBudgetOverview = !showBudgetOverview"
+      >
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 bg-purple-100 dark:bg-purple-900/40 rounded-xl flex items-center justify-center">
+            <svg class="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          </div>
+          <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('budget_overview') }}</span>
+          <span class="text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full">
+            {{ getMonthName(now.getMonth()) }}
+          </span>
+        </div>
+        <svg
+          class="w-4 h-4 text-gray-400 transition-transform duration-200"
+          :class="showBudgetOverview ? 'rotate-180' : ''"
+          fill="none" stroke="currentColor" viewBox="0 0 24 24"
+        >
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      <div v-if="showBudgetOverview" class="px-4 pb-4 space-y-3 border-t border-gray-100 dark:border-gray-700 pt-3">
+        <div v-for="item in budgetProgress" :key="item.value">
+          <div class="flex items-center justify-between mb-1">
+            <div class="flex items-center gap-1.5">
+              <span class="text-base">{{ item.icon }}</span>
+              <span class="text-sm font-medium text-gray-700 dark:text-gray-200">{{ item.label }}</span>
+            </div>
+            <div class="text-right">
+              <span class="text-xs font-semibold" :class="item.pct >= 100 ? 'text-red-500' : item.pct >= 80 ? 'text-amber-500' : 'text-gray-500 dark:text-gray-400'">
+                {{ formatCurrency(item.spent) }} / {{ formatCurrency(item.limit) }}
+              </span>
+              <span class="text-xs ml-1.5 font-bold" :class="item.pct >= 100 ? 'text-red-500' : item.pct >= 80 ? 'text-amber-500' : 'text-green-600'">
+                {{ item.pct }}%
+              </span>
+            </div>
+          </div>
+          <div class="h-2 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">
+            <div
+              class="h-full rounded-full transition-all duration-500"
+              :class="item.pct >= 100 ? 'bg-red-500' : item.pct >= 80 ? 'bg-amber-400' : 'bg-green-500'"
+              :style="{ width: item.pct + '%' }"
+            />
+          </div>
+        </div>
+      </div>
+    </BaseCard>
 
     <!-- Transactions List -->
     <BaseCard>

@@ -2,17 +2,28 @@
  * Composable for formatting utilities
  */
 import { useI18n } from 'vue-i18n'
+import { useCurrency } from './useCurrency'
 
 export function useFormat() {
   const { locale, t } = useI18n()
+  const { currency, convertAmount } = useCurrency()
 
-  // Format currency
-  const formatCurrency = (amount, currency = 'USD') => {
+  // Format currency — converts from USD storage value to the selected display currency
+  const formatCurrency = (amount) => {
+    const displayAmount = convertAmount(amount)
+    if (currency.value === 'KHR') {
+      return new Intl.NumberFormat(locale.value || 'en-US', {
+        style: 'currency',
+        currency: 'KHR',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      }).format(displayAmount)
+    }
     return new Intl.NumberFormat(locale.value || 'en-US', {
       style: 'currency',
-      currency,
+      currency: 'USD',
       minimumFractionDigits: 2
-    }).format(amount)
+    }).format(displayAmount)
   }
 
   // Format date for display

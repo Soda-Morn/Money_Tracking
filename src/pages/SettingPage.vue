@@ -4,12 +4,14 @@ import { useRouter } from 'vue-router'
 import { useTheme } from '../composables/useTheme'
 import { useI18n } from 'vue-i18n'
 import { useLanguage } from '../composables/useLanguage'
+import { useCurrency, USD_TO_KHR } from '../composables/useCurrency'
 import BaseCard from '../components/ui/BaseCard.vue'
 
 const router = useRouter()
 const { isDark, toggleTheme } = useTheme()
 const { t } = useI18n()
 const { locale } = useLanguage()
+const { currency } = useCurrency()
 
 const menuItems = computed(() => [
   {
@@ -86,6 +88,29 @@ const menuItems = computed(() => [
           >
             <option value="en">{{ t('english') }}</option>
             <option value="km">{{ t('khmer') }}</option>
+          </select>
+        </div>
+
+        <!-- currency selector -->
+        <div class="w-full flex items-center justify-between px-4 py-4 text-left">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 bg-gray-100 dark:bg-gray-700 rounded-xl flex items-center justify-center text-lg shrink-0">
+              💵
+            </div>
+            <div>
+              <p class="text-sm font-medium text-gray-900 dark:text-white">{{ t('currency') }}</p>
+              <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                {{ t('choose_currency_desc') }}
+                <span v-if="currency === 'KHR'" class="ml-1 text-blue-500">1 USD = {{ USD_TO_KHR.toLocaleString() }} ៛</span>
+              </p>
+            </div>
+          </div>
+          <select
+            v-model="currency"
+            class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="USD">{{ t('usd') }}</option>
+            <option value="KHR">{{ t('khr') }}</option>
           </select>
         </div>
 

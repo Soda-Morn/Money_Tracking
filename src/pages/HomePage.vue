@@ -9,9 +9,12 @@ import TransactionForm from '../components/transactions/TransactionForm.vue'
 import BaseCard from '../components/ui/BaseCard.vue'
 import BaseButton from '../components/ui/BaseButton.vue'
 import BaseModal from '../components/ui/BaseModal.vue'
+import MobileFAB from '../components/ui/MobileFAB.vue'
+import { useToast } from '../composables/useToast'
 import { useI18n } from 'vue-i18n'
 
 const { transactions, addTransaction, updateTransaction, deleteTransaction } = useTransactions()
+const toast = useToast()
 const { getMonthName, formatCurrency, formatDate } = useFormat()
 const { getCategoryInfo } = useCategories()
 
@@ -230,9 +233,15 @@ const showViewModal = ref(false)
 const editingTransaction = ref(null)
 const viewingTransaction = ref(null)
 
-const handleAdd = (data) => {
-  addTransaction(data)
+// Delete confirm dialog
+const showDeleteDialog  = ref(false)
+const deletingId        = ref(null)
+const deletingCategory  = ref('')
+
+const handleAdd = async (data) => {
+  await addTransaction(data)
   showAddModal.value = false
+  toast.success(t('toast_transaction_added'))
 }
 
 const handleEdit = (transaction) => {
@@ -245,16 +254,34 @@ const handleView = (transaction) => {
   showViewModal.value = true
 }
 
-const handleUpdate = (data) => {
-  updateTransaction(editingTransaction.value.id, data)
+const handleUpdate = async (data) => {
+  await updateTransaction(editingTransaction.value.id, data)
   showEditModal.value = false
   editingTransaction.value = null
+  toast.success(t('toast_transaction_updated'))
 }
 
 const handleDelete = (id) => {
-  if (confirm('Are you sure you want to delete this transaction?')) {
-    deleteTransaction(id)
+  const tx = transactions.value.find(t => t.id === id)
+  deletingId.value = id
+  deletingCategory.value = tx ? getCategoryInfo(tx.category, tx.type).label : ''
+  showDeleteDialog.value = true
+}
+
+const confirmDelete = async () => {
+  if (deletingId.value) {
+    await deleteTransaction(deletingId.value)
+    toast.success(t('toast_transaction_deleted'))
   }
+  showDeleteDialog.value = false
+  deletingId.value = null
+  deletingCategory.value = ''
+}
+
+const cancelDelete = () => {
+  showDeleteDialog.value = false
+  deletingId.value = null
+  deletingCategory.value = ''
 }
 </script>
 
@@ -606,6 +633,77 @@ const handleDelete = (id) => {
         </div>
       </div>
     </BaseModal>
+
+    <!-- Mobile FAB -->
+    <MobileFAB @click="showAddModal = true" />
+
+    <!-- ── Delete Confirmation Dialog ──────────────────────────────────────── -->
+    <Teleport to="body">
+      <Transition
+        enter-active-class="transition duration-200 ease-out"
+        enter-from-class="opacity-0"
+        enter-to-class="opacity-100"
+        leave-active-class="transition duration-150 ease-in"
+        leave-from-class="opacity-100"
+        leave-to-class="opacity-0"
+      >
+        <div
+          v-if="showDeleteDialog"
+          class="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+          @click.self="cancelDelete"
+        >
+          <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+          <Transition
+            enter-active-class="transition duration-200 ease-out"
+            enter-from-class="translate-y-4 opacity-0 sm:scale-95"
+            enter-to-class="translate-y-0 opacity-100 sm:scale-100"
+            leave-active-class="transition duration-150 ease-in"
+            leave-from-class="translate-y-0 opacity-100 sm:scale-100"
+            leave-to-class="translate-y-4 opacity-0 sm:scale-95"
+          >
+            <div
+              v-if="showDeleteDialog"
+              class="relative w-full sm:max-w-sm mx-auto bg-white dark:bg-gray-800 rounded-t-3xl sm:rounded-2xl shadow-2xl px-6 pt-6 pb-8 sm:pb-6"
+            >
+              <div class="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto mb-5 sm:hidden" />
+              <div class="flex items-center justify-center mb-4">
+                <div class="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center">
+                  <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </div>
+              </div>
+              <h3 class="text-lg font-bold text-center text-gray-900 dark:text-white mb-1">
+                {{ t('delete_confirm_title') }}
+              </h3>
+              <p class="text-sm text-center text-gray-500 dark:text-gray-400 mb-6">
+                <template v-if="deletingCategory">
+                  {{ t('delete_confirm_name', { name: deletingCategory }) }}
+                </template>
+                <template v-else>
+                  {{ t('delete_confirm_desc') }}
+                </template>
+              </p>
+              <div class="flex flex-col-reverse sm:flex-row gap-3">
+                <button
+                  class="flex-1 py-3 rounded-xl border border-gray-200 dark:border-gray-600 text-sm font-semibold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                  @click="cancelDelete"
+                >
+                  {{ t('cancel') }}
+                </button>
+                <button
+                  class="flex-1 py-3 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 active:bg-red-700 transition-colors shadow-sm"
+                  @click="confirmDelete"
+                >
+                  {{ t('delete') }}
+                </button>
+              </div>
+            </div>
+          </Transition>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 

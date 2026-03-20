@@ -6,6 +6,7 @@ import { useUserPreferences } from './composables/useUserPreferences'
 import Navbar from './components/layout/Navbar.vue'
 import MobileNav from './components/layout/MobileNav.vue'
 import MobileHeader from './components/layout/MobileHeader.vue'
+import ToastContainer from './components/ui/ToastContainer.vue'
 import { useI18n } from 'vue-i18n'
 
 const { t, locale } = useI18n()
@@ -52,6 +53,7 @@ watch(locale, () => {
         </div>
       </main>
       <MobileNav />
+      <ToastContainer />
     </div>
 
     <!-- Unauthenticated: show auth page (no layout chrome) -->

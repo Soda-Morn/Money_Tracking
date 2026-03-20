@@ -7,8 +7,11 @@ import BaseButton from '../components/ui/BaseButton.vue'
 import BaseInput from '../components/ui/BaseInput.vue'
 import BaseModal from '../components/ui/BaseModal.vue'
 import BaseCard from '../components/ui/BaseCard.vue'
+import MobileFAB from '../components/ui/MobileFAB.vue'
+import { useToast } from '../composables/useToast'
 
 const { t } = useI18n()
+const toast = useToast()
 const { addTransaction, updateTransaction, deleteTransaction, transactions } = useTransactions()
 const { formatCurrency, formatDate, getCurrentDate } = useFormat()
 
@@ -18,6 +21,11 @@ const isEditing = ref(false)
 const editingId = ref(null)
 const showViewModal = ref(false)
 const viewingTransaction = ref(null)
+
+// Delete confirm dialog
+const showDeleteDialog = ref(false)
+const deletingId = ref(null)
+const deletingName = ref('')
 
 // Form data
 const form = ref({
@@ -54,16 +62,32 @@ const paybackTransactions = computed(() =>
   transactions.value.filter(t => t.type === 'payback')
 )
 
+// Name filter
+const filterName = ref('')
+
+const filteredBorrowTransactions = computed(() => {
+  const q = filterName.value.trim().toLowerCase()
+  if (!q) return borrowTransactions.value
+  return borrowTransactions.value.filter(t => (t.name || '').toLowerCase().includes(q))
+})
+
+const filteredPaybackTransactions = computed(() => {
+  const q = filterName.value.trim().toLowerCase()
+  if (!q) return paybackTransactions.value
+  return paybackTransactions.value.filter(t => (t.name || '').toLowerCase().includes(q))
+})
+
 // Pagination state (separate for each table)
 const borrowPage = ref(1)
 const paybackPage = ref(1)
 watch(pageSize, () => { borrowPage.value = 1; paybackPage.value = 1 })
+watch(filterName, () => { borrowPage.value = 1; paybackPage.value = 1 })
 
 const borrowTotalPages = computed(() =>
-  Math.max(1, Math.ceil(borrowTransactions.value.length / pageSize.value))
+  Math.max(1, Math.ceil(filteredBorrowTransactions.value.length / pageSize.value))
 )
 const paybackTotalPages = computed(() =>
-  Math.max(1, Math.ceil(paybackTransactions.value.length / pageSize.value))
+  Math.max(1, Math.ceil(filteredPaybackTransactions.value.length / pageSize.value))
 )
 
 watch(borrowTotalPages, (tp) => { if (borrowPage.value > tp) borrowPage.value = tp })
@@ -71,12 +95,12 @@ watch(paybackTotalPages, (tp) => { if (paybackPage.value > tp) paybackPage.value
 
 const paginatedBorrow = computed(() => {
   const start = (borrowPage.value - 1) * pageSize.value
-  return borrowTransactions.value.slice(start, start + pageSize.value)
+  return filteredBorrowTransactions.value.slice(start, start + pageSize.value)
 })
 
 const paginatedPayback = computed(() => {
   const start = (paybackPage.value - 1) * pageSize.value
-  return paybackTransactions.value.slice(start, start + pageSize.value)
+  return filteredPaybackTransactions.value.slice(start, start + pageSize.value)
 })
 
 const visiblePages = (total, cur) => {
@@ -102,13 +126,13 @@ const closeMenu = () => { openMenuId.value = null }
 const onDocClick = () => { closeMenu() }
 const onDocKeydown = (event) => { if (event.key === 'Escape') closeMenu() }
 
-// Totals
+// Totals — use filtered lists when a name filter is active, full lists otherwise
 const totalBorrowed = computed(() =>
-  borrowTransactions.value.reduce((sum, t) => sum + Number(t.amount), 0)
+  filteredBorrowTransactions.value.reduce((sum, t) => sum + Number(t.amount), 0)
 )
 
 const totalPaidBack = computed(() =>
-  paybackTransactions.value.reduce((sum, t) => sum + Number(t.amount), 0)
+  filteredPaybackTransactions.value.reduce((sum, t) => sum + Number(t.amount), 0)
 )
 
 const outstandingDebt = computed(() =>
@@ -152,10 +176,26 @@ const openViewModal = (transaction) => {
   showViewModal.value = true
 }
 
-const handleDelete = async (id) => {
-  if (confirm(t('delete') + '?')) {
-    await deleteTransaction(id)
+const handleDelete = (id, name) => {
+  deletingId.value = id
+  deletingName.value = name || ''
+  showDeleteDialog.value = true
+}
+
+const confirmDelete = async () => {
+  if (deletingId.value) {
+    await deleteTransaction(deletingId.value)
+    toast.success(t('toast_record_deleted'))
   }
+  showDeleteDialog.value = false
+  deletingId.value = null
+  deletingName.value = ''
+}
+
+const cancelDelete = () => {
+  showDeleteDialog.value = false
+  deletingId.value = null
+  deletingName.value = ''
 }
 
 // Submit form
@@ -169,8 +209,10 @@ const handleSubmit = async () => {
 
   if (isEditing.value && editingId.value) {
     await updateTransaction(editingId.value, transactionData)
+    toast.success(t('toast_record_updated'))
   } else {
     await addTransaction(transactionData)
+    toast.success(t('toast_record_added'))
   }
   showModal.value = false
 }
@@ -350,6 +392,30 @@ const closeModal = () => {
       </BaseCard>
     </div>
 
+    <!-- Name Filter -->
+    <div class="flex items-center gap-2">
+      <div class="relative flex-1 max-w-xs">
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
+        </svg>
+        <input
+          v-model="filterName"
+          type="text"
+          :placeholder="t('filter_by_name')"
+          class="w-full pl-9 pr-8 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <button
+          v-if="filterName"
+          class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+          @click="filterName = ''"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
     <!-- Tables -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
       <!-- Borrow Records -->
@@ -362,7 +428,7 @@ const closeModal = () => {
 
         <!-- Mobile list -->
         <div class="md:hidden">
-          <div v-if="borrowTransactions.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
+          <div v-if="filteredBorrowTransactions.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
             {{ t('no_transactions_title') }}
           </div>
           <div v-else class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -427,7 +493,7 @@ const closeModal = () => {
                     <button
                       class="w-full px-3 py-2.5 flex items-center gap-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                       role="menuitem"
-                      @click="closeMenu(); handleDelete(transaction.id)"
+                      @click="closeMenu(); handleDelete(transaction.id, transaction.name)"
                     >
                       <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -522,7 +588,7 @@ const closeModal = () => {
                       <button
                         class="w-full px-3 py-2.5 flex items-center gap-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                         role="menuitem"
-                        @click="closeMenu(); handleDelete(transaction.id)"
+                        @click="closeMenu(); handleDelete(transaction.id, transaction.name)"
                       >
                         <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -535,7 +601,7 @@ const closeModal = () => {
               </tr>
             </tbody>
           </table>
-          <div v-if="borrowTransactions.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
+          <div v-if="filteredBorrowTransactions.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
             {{ t('no_transactions_title') }}
           </div>
           <div v-if="borrowTotalPages > 1" class="flex items-center justify-center gap-1.5 pt-4 mt-4 border-t border-gray-100 dark:border-gray-700">
@@ -596,7 +662,7 @@ const closeModal = () => {
 
         <!-- Mobile list -->
         <div class="md:hidden">
-          <div v-if="paybackTransactions.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
+          <div v-if="filteredPaybackTransactions.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
             {{ t('no_transactions_title') }}
           </div>
           <div v-else class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -661,7 +727,7 @@ const closeModal = () => {
                     <button
                       class="w-full px-3 py-2.5 flex items-center gap-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                       role="menuitem"
-                      @click="closeMenu(); handleDelete(transaction.id)"
+                      @click="closeMenu(); handleDelete(transaction.id, transaction.name)"
                     >
                       <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -756,7 +822,7 @@ const closeModal = () => {
                       <button
                         class="w-full px-3 py-2.5 flex items-center gap-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                         role="menuitem"
-                        @click="closeMenu(); handleDelete(transaction.id)"
+                        @click="closeMenu(); handleDelete(transaction.id, transaction.name)"
                       >
                         <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -769,7 +835,7 @@ const closeModal = () => {
               </tr>
             </tbody>
           </table>
-          <div v-if="paybackTransactions.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
+          <div v-if="filteredPaybackTransactions.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
             {{ t('no_transactions_title') }}
           </div>
           <div v-if="paybackTotalPages > 1" class="flex items-center justify-center gap-1.5 pt-4 mt-4 border-t border-gray-100 dark:border-gray-700">
@@ -896,6 +962,87 @@ const closeModal = () => {
         </div>
       </form>
     </BaseModal>
+
+    <!-- Mobile FAB -->
+    <MobileFAB @click="openAddModal" />
+
+    <!-- ── Delete Confirmation Dialog ─────────────────────────────────────── -->
+    <Teleport to="body">
+      <Transition
+        enter-active-class="transition duration-200 ease-out"
+        enter-from-class="opacity-0"
+        enter-to-class="opacity-100"
+        leave-active-class="transition duration-150 ease-in"
+        leave-from-class="opacity-100"
+        leave-to-class="opacity-0"
+      >
+        <div
+          v-if="showDeleteDialog"
+          class="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+          @click.self="cancelDelete"
+        >
+          <!-- Backdrop -->
+          <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+
+          <!-- Sheet / Card -->
+          <Transition
+            enter-active-class="transition duration-200 ease-out"
+            enter-from-class="translate-y-4 opacity-0 sm:scale-95"
+            enter-to-class="translate-y-0 opacity-100 sm:scale-100"
+            leave-active-class="transition duration-150 ease-in"
+            leave-from-class="translate-y-0 opacity-100 sm:scale-100"
+            leave-to-class="translate-y-4 opacity-0 sm:scale-95"
+          >
+            <div
+              v-if="showDeleteDialog"
+              class="relative w-full sm:max-w-sm mx-auto bg-white dark:bg-gray-800 rounded-t-3xl sm:rounded-2xl shadow-2xl px-6 pt-6 pb-8 sm:pb-6"
+            >
+              <!-- Drag handle (mobile) -->
+              <div class="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto mb-5 sm:hidden" />
+
+              <!-- Icon -->
+              <div class="flex items-center justify-center mb-4">
+                <div class="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center">
+                  <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </div>
+              </div>
+
+              <!-- Text -->
+              <h3 class="text-lg font-bold text-center text-gray-900 dark:text-white mb-1">
+                {{ t('delete_confirm_title') }}
+              </h3>
+              <p class="text-sm text-center text-gray-500 dark:text-gray-400 mb-6">
+                <template v-if="deletingName">
+                  {{ t('delete_confirm_name', { name: deletingName }) }}
+                </template>
+                <template v-else>
+                  {{ t('delete_confirm_desc') }}
+                </template>
+              </p>
+
+              <!-- Buttons -->
+              <div class="flex flex-col-reverse sm:flex-row gap-3">
+                <button
+                  class="flex-1 py-3 rounded-xl border border-gray-200 dark:border-gray-600 text-sm font-semibold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                  @click="cancelDelete"
+                >
+                  {{ t('cancel') }}
+                </button>
+                <button
+                  class="flex-1 py-3 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 active:bg-red-700 transition-colors shadow-sm"
+                  @click="confirmDelete"
+                >
+                  {{ t('delete') }}
+                </button>
+              </div>
+            </div>
+          </Transition>
+        </div>
+      </Transition>
+    </Teleport>
 
     <BaseModal :show="showViewModal" :title="t('transaction_details')" @close="showViewModal = false">
       <div v-if="viewingTransaction" class="space-y-3">

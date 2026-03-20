@@ -4,11 +4,13 @@ import { db } from '../firebase'
 import { useAuth } from './useAuth'
 import { useTheme } from './useTheme'
 import { useI18n } from 'vue-i18n'
+import { useCurrency } from './useCurrency'
 
 export function useUserPreferences() {
   const { currentUser } = useAuth()
   const { isDark } = useTheme()
   const { locale } = useI18n()
+  const { currency } = useCurrency()
 
   const prefsRef = (uid) => doc(db, 'users', uid, 'settings', 'preferences')
 
@@ -23,7 +25,7 @@ export function useUserPreferences() {
       if (!snap.exists()) return
 
       isSyncing = true
-      const { theme, locale: savedLocale } = snap.data()
+      const { theme, locale: savedLocale, currency: savedCurrency } = snap.data()
 
       if (theme) {
         isDark.value = theme === 'dark'
@@ -33,6 +35,10 @@ export function useUserPreferences() {
       if (savedLocale) {
         locale.value = savedLocale
         localStorage.setItem('locale', savedLocale)
+      }
+      if (savedCurrency) {
+        currency.value = savedCurrency
+        localStorage.setItem('currency', savedCurrency)
       }
 
       await nextTick()
@@ -60,6 +66,16 @@ export function useUserPreferences() {
       await setDoc(prefsRef(currentUser.value.uid), { locale: val }, { merge: true })
     } catch (e) {
       console.error('[preferences] save locale failed:', e)
+    }
+  })
+
+  // ── Save currency to Firestore whenever it changes ────────────────────────
+  watch(currency, async (val) => {
+    if (isSyncing || !currentUser.value?.uid) return
+    try {
+      await setDoc(prefsRef(currentUser.value.uid), { currency: val }, { merge: true })
+    } catch (e) {
+      console.error('[preferences] save currency failed:', e)
     }
   })
 }

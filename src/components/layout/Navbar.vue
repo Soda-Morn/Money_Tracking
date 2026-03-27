@@ -123,6 +123,11 @@ const handleLogout = async () => {
         </svg>
         {{ t('sign_out') }}
       </button>
+
+      <!-- Credit -->
+      <p class="text-center text-[10px] text-gray-600 mt-2 tracking-wide select-none">
+        Made by <span class="text-blue-400 font-semibold">Soda MORN</span>
+      </p>
     </div>
   </aside>
 </template>

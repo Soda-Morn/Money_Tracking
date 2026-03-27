@@ -1,50 +1,49 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { auth } from '../firebase'
 import { onAuthStateChanged } from 'firebase/auth'
-import HomePage from '../pages/HomePage.vue'
-import SavingsPage from '../pages/SavingsPage.vue'
-import AnalyticsPage from '../pages/AnalyticsPage.vue'
-import SettingPage from '../pages/SettingPage.vue'
-import CategoryPage from '../pages/CategoryPage.vue'
-import BorrowPage from '../pages/BorrowPage.vue'
-import AuthPage from '../pages/AuthPage.vue'
 
+// Lazy-loaded routes — each page is a separate JS chunk loaded on demand
 const routes = [
   {
     path: '/login',
     name: 'Login',
-    component: AuthPage,
+    component: () => import('../pages/AuthPage.vue'),
     meta: { public: true }
   },
   {
     path: '/',
     name: 'Home',
-    component: HomePage
+    component: () => import('../pages/HomePage.vue')
   },
   {
     path: '/savings',
     name: 'Savings',
-    component: SavingsPage
+    component: () => import('../pages/SavingsPage.vue')
   },
   {
     path: '/analytics',
     name: 'Analytics',
-    component: AnalyticsPage
+    component: () => import('../pages/AnalyticsPage.vue')
   },
   {
     path: '/borrow',
     name: 'Borrow',
-    component: BorrowPage
+    component: () => import('../pages/BorrowPage.vue')
   },
   {
     path: '/settings',
     name: 'Settings',
-    component: SettingPage
+    component: () => import('../pages/SettingPage.vue')
   },
   {
     path: '/settings/categories',
     name: 'Categories',
-    component: CategoryPage
+    component: () => import('../pages/CategoryPage.vue')
+  },
+  {
+    path: '/settings/budget',
+    name: 'Budget',
+    component: () => import('../pages/BudgetPage.vue')
   },
   {
     path: '/:pathMatch(.*)*',

@@ -114,6 +114,15 @@ const handleDelete = async (id) => {
         </button>
       </div>
 
+      <!-- Empty state -->
+      <div v-if="currentCategories.length === 0" class="flex flex-col items-center justify-center py-12 px-4 text-center">
+        <div class="w-14 h-14 bg-gray-100 dark:bg-gray-700 rounded-2xl flex items-center justify-center text-3xl mb-3">
+          {{ activeTab === 'expense' ? '💸' : '💵' }}
+        </div>
+        <p class="text-sm font-semibold text-gray-900 dark:text-white mb-1">No categories yet</p>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Tap <strong>+ Add</strong> to create your first category</p>
+      </div>
+
       <!-- Category list — accordion -->
       <div class="divide-y divide-gray-100 dark:divide-gray-700">
         <div v-for="cat in currentCategories" :key="cat.value">
@@ -143,22 +152,10 @@ const handleDelete = async (id) => {
           >
             <div class="flex items-center gap-3">
               <span class="text-3xl">{{ cat.icon }}</span>
-              <div>
-                <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ cat.label }}</p>
-                <span
-                  class="text-xs px-1.5 py-0.5 rounded font-medium"
-                  :class="cat.isDefault
-                    ? 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400'
-                    : 'bg-blue-100 dark:bg-blue-800 text-blue-600 dark:text-blue-300'"
-                >
-                  {{ cat.isDefault ? t('default') : t('custom') }}
-                </span>
-              </div>
+              <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ cat.label }}</p>
             </div>
 
-            <!-- Delete (custom only) -->
             <button
-              v-if="!cat.isDefault"
               class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors shrink-0"
               @click="handleDelete(cat.id)"
             >
@@ -167,7 +164,6 @@ const handleDelete = async (id) => {
               </svg>
               {{ t('delete') }}
             </button>
-            <span v-else class="text-xs text-gray-400 dark:text-gray-500 shrink-0">{{ t('cannot_delete') }}</span>
           </div>
 
         </div>

@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useTransactions } from '../composables/useTransactions'
 import { useFormat } from '../composables/useFormat'
+import { useCategories } from '../composables/useCategories'
 import ExpenseChart from '../components/charts/ExpenseChart.vue'
 import TrendChart from '../components/charts/TrendChart.vue'
 import BarChart from '../components/charts/BarChart.vue'
@@ -12,6 +13,7 @@ import EmptyState from '../components/ui/EmptyState.vue'
 const { transactions, totalIncome, totalExpense, totalBalance } = useTransactions()
 const { t } = useI18n()
 const { formatCurrency, getMonthName } = useFormat()
+const { getCategoryInfo } = useCategories()
 
 const currentMonth = ref(new Date().getMonth())
 const currentYear = ref(new Date().getFullYear())
@@ -63,16 +65,9 @@ const topCategories = computed(() => {
     .map(([category, amount]) => ({ category, amount }))
 })
 
-const categoryLabels = {
-  food: 'Food & Dining',
-  transport: 'Transportation',
-  shopping: 'Shopping',
-  bills: 'Bills & Utilities',
-  entertainment: 'Entertainment',
-  health: 'Health',
-  education: 'Education',
-  other: 'Other'
-}
+// Resolve a category value to its display label + icon
+const getCatLabel = (value) => getCategoryInfo(value, 'expense').label
+const getCatIcon  = (value) => getCategoryInfo(value, 'expense').icon
 
 // ── Spending Insights ─────────────────────────────────────────────────────────
 const prevMonthTransactions = computed(() => {
@@ -98,7 +93,7 @@ const topMonthlyCategory = computed(() => {
   const sorted = Object.entries(grouped).sort(([, a], [, b]) => b - a)
   if (!sorted.length) return null
   const [category, amount] = sorted[0]
-  return { category, amount, label: categoryLabels[category] || category }
+  return { category, amount, label: getCatLabel(category), icon: getCatIcon(category) }
 })
 
 const expenseChange = computed(() => {
@@ -318,7 +313,8 @@ const nextMonth = () => {
               <span class="w-6 h-6 flex items-center justify-center text-sm font-medium bg-gray-100 dark:bg-gray-700 rounded-full text-gray-600 dark:text-gray-300">
                 {{ index + 1 }}
               </span>
-              <span class="text-gray-900 dark:text-white">{{ categoryLabels[item.category] || item.category }}</span>
+              <span class="text-xl">{{ getCatIcon(item.category) }}</span>
+              <span class="text-gray-900 dark:text-white">{{ getCatLabel(item.category) }}</span>
             </div>
             <span class="font-medium text-gray-900 dark:text-white">{{ formatCurrency(item.amount) }}</span>
           </div>

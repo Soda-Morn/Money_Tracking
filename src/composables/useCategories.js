@@ -42,15 +42,14 @@ onAuthStateChanged(auth, (user) => {
 })
 
 export function useCategories() {
-  const expenseCategories = computed(() => [
-    ...defaultExpenseCategories,
-    ...customCategories.value.filter(c => c.type === 'expense')
-  ])
+  // Only user-created categories — no defaults shown in lists
+  const expenseCategories = computed(() =>
+    customCategories.value.filter(c => c.type === 'expense')
+  )
 
-  const incomeCategories = computed(() => [
-    ...defaultIncomeCategories,
-    ...customCategories.value.filter(c => c.type === 'income')
-  ])
+  const incomeCategories = computed(() =>
+    customCategories.value.filter(c => c.type === 'income')
+  )
 
   // Returns { icon, label } for a given category value + transaction type
   const getCategoryInfo = (categoryValue, type) => {

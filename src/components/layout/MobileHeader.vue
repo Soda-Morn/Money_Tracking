@@ -18,6 +18,7 @@ const pageTitle = computed(() => {
     '/analytics':         t('pages.analytics'),
     '/settings':          t('pages.settings'),
     '/settings/categories': t('pages.categories'),
+    '/settings/budget':     t('pages.budget'),
     '/borrow':            t('pages.borrow'),
   }
   return titles[route.path] || 'Money Tracking'

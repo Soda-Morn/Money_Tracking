@@ -13,10 +13,14 @@ import BaseButton from '../components/ui/BaseButton.vue'
 import BaseModal from '../components/ui/BaseModal.vue'
 import MobileFAB from '../components/ui/MobileFAB.vue'
 import { useToast } from '../composables/useToast'
+import { usePdfExport } from '../composables/usePdfExport'
+import { useAuth } from '../composables/useAuth'
 import { useI18n } from 'vue-i18n'
 
 const { transactions, addTransaction, updateTransaction, deleteTransaction } = useTransactions()
 const toast = useToast()
+const { exportToPdf } = usePdfExport()
+const { currentUser } = useAuth()
 const { getMonthName, formatCurrency, formatDate } = useFormat()
 const { getCategoryInfo } = useCategories()
 const { budgets } = useBudget()
@@ -274,6 +278,30 @@ const showDeleteDialog  = ref(false)
 const deletingId        = ref(null)
 const deletingCategory  = ref('')
 
+// ── PDF Export ────────────────────────────────────────────────────────────────
+const isExporting = ref(false)
+
+const handleExportPdf = async () => {
+  if (isExporting.value) return
+  isExporting.value = true
+  try {
+    await new Promise(r => setTimeout(r, 50)) // let spinner render
+    exportToPdf({
+      transactions: dateFilteredTransactions.value,
+      monthLabel: monthLabel.value,
+      income:   filteredIncome.value,
+      expense:  filteredExpense.value,
+      balance:  filteredBalance.value,
+      formatCurrency,
+      getCategoryInfo,
+      userName: currentUser.value?.displayName || currentUser.value?.email || null,
+    })
+    toast.success('PDF exported successfully')
+  } finally {
+    isExporting.value = false
+  }
+}
+
 const handleAdd = async (data) => {
   await addTransaction(data)
   showAddModal.value = false
@@ -508,7 +536,28 @@ const cancelDelete = () => {
       <!-- Header -->
       <div class="flex items-center justify-between mb-3">
         <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('transactions') }}</h2>
-        <span class="text-sm text-gray-500 dark:text-gray-400">{{ dateFilteredTransactions.length }} total</span>
+        <div class="flex items-center gap-2">
+          <span class="text-sm text-gray-500 dark:text-gray-400">{{ dateFilteredTransactions.length }} total</span>
+          <!-- PDF Export button -->
+          <button
+            :disabled="isExporting || dateFilteredTransactions.length === 0"
+            class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+            :class="isExporting
+              ? 'bg-red-50 dark:bg-red-900/20 text-red-500'
+              : 'bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400'"
+            :title="'Export ' + monthLabel + ' as PDF'"
+            @click="handleExportPdf"
+          >
+            <svg v-if="!isExporting" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <svg v-else class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+            </svg>
+            <span class="hidden sm:inline">{{ isExporting ? 'Exporting...' : 'PDF' }}</span>
+          </button>
+        </div>
       </div>
 
       <!-- Filter row: type pills + date toggle (calendar hidden when no month selected) -->

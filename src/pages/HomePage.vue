@@ -21,7 +21,7 @@ const toast = useToast()
 const { exportToPdf } = usePdfExport()
 const { currentUser } = useAuth()
 const { getMonthName, formatCurrency, formatDate } = useFormat()
-const { getCategoryInfo, expenseCategories } = useCategories()
+const { getCategoryInfo } = useCategories()
 const { budgets } = useBudget()
 
 // ── Month filter ─────────────────────────────────────────────────────────────
@@ -217,37 +217,26 @@ const selectDay = (day) => {
 
 const clearDateFilter = () => { dateFilter.value = null }
 
-// ── Budget progress ───────────────────────────────────────────────────────────
+// ── Budget overview ───────────────────────────────────────────────────────────
 const showBudgetOverview = ref(true)
 
-// Always use current real month for budget (not the month filter)
-const budgetMonthKey = toMonthKey(now)
+// Show budget only when a month is selected and a budget exists for that month
+const selectedMonthBudget = computed(() =>
+  selectedMonth.value ? (budgets.value[selectedMonth.value] ?? null) : null
+)
 
-const budgetProgress = computed(() => {
-  const currentMonthExpenses = transactions.value.filter(
-    t => t.type === 'expense' && t.date.startsWith(budgetMonthKey)
-  )
-  return expenseCategories.value
-    .filter(cat => budgets.value[cat.value])
-    .map(cat => {
-      const spent = currentMonthExpenses
-        .filter(t => t.category === cat.value)
-        .reduce((sum, t) => sum + Number(t.amount), 0)
-      const limit = budgets.value[cat.value]
-      const pct = Math.min(100, Math.round((spent / limit) * 100))
-      return { ...cat, spent, limit, pct }
-    })
+const budgetPct = computed(() => {
+  if (!selectedMonthBudget.value) return 0
+  return Math.min(100, Math.round((filteredExpense.value / selectedMonthBudget.value) * 100))
 })
 
-// Toast warning once per session when a category hits 80%
-const warnedCategories = new Set()
-watch(budgetProgress, (items) => {
-  items.forEach(item => {
-    if (item.pct >= 80 && !warnedCategories.has(item.value)) {
-      warnedCategories.add(item.value)
-      toast.info(`${item.icon} ${item.label}: ${item.pct}% ${t('budget_warning')}`)
-    }
-  })
+// Toast warning once per session when spending hits 80% of budget
+let budgetWarned = false
+watch(budgetPct, (pct) => {
+  if (pct >= 80 && !budgetWarned && selectedMonthBudget.value) {
+    budgetWarned = true
+    toast.info(`${pct}% ${t('budget_warning')}`)
+  }
 }, { immediate: false })
 
 // ── Pagination — visible page numbers with ellipsis ──────────────────────────
@@ -478,7 +467,7 @@ const cancelDelete = () => {
     />
 
     <!-- ── Budget Overview ──────────────────────────────────────────────────── -->
-    <BaseCard v-if="budgetProgress.length > 0" padding="p-0">
+    <BaseCard v-if="selectedMonthBudget !== null" padding="p-0">
       <button
         class="w-full flex items-center justify-between px-4 py-3 text-left"
         @click="showBudgetOverview = !showBudgetOverview"
@@ -491,7 +480,7 @@ const cancelDelete = () => {
           </div>
           <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('budget_overview') }}</span>
           <span class="text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full">
-            {{ getMonthName(now.getMonth()) }}
+            {{ monthLabel }}
           </span>
         </div>
         <svg
@@ -503,30 +492,31 @@ const cancelDelete = () => {
         </svg>
       </button>
 
-      <div v-if="showBudgetOverview" class="px-4 pb-4 space-y-3 border-t border-gray-100 dark:border-gray-700 pt-3">
-        <div v-for="item in budgetProgress" :key="item.value">
-          <div class="flex items-center justify-between mb-1">
-            <div class="flex items-center gap-1.5">
-              <span class="text-base">{{ item.icon }}</span>
-              <span class="text-sm font-medium text-gray-700 dark:text-gray-200">{{ item.label }}</span>
-            </div>
-            <div class="text-right">
-              <span class="text-xs font-semibold" :class="item.pct >= 100 ? 'text-red-500' : item.pct >= 80 ? 'text-amber-500' : 'text-gray-500 dark:text-gray-400'">
-                {{ formatCurrency(item.spent) }} / {{ formatCurrency(item.limit) }}
-              </span>
-              <span class="text-xs ml-1.5 font-bold" :class="item.pct >= 100 ? 'text-red-500' : item.pct >= 80 ? 'text-amber-500' : 'text-green-600'">
-                {{ item.pct }}%
-              </span>
-            </div>
-          </div>
-          <div class="h-2 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">
-            <div
-              class="h-full rounded-full transition-all duration-500"
-              :class="item.pct >= 100 ? 'bg-red-500' : item.pct >= 80 ? 'bg-amber-400' : 'bg-green-500'"
-              :style="{ width: item.pct + '%' }"
-            />
+      <div v-if="showBudgetOverview" class="px-4 pb-4 border-t border-gray-100 dark:border-gray-700 pt-3">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-sm font-medium text-gray-700 dark:text-gray-200">Total Spending</span>
+          <div class="text-right">
+            <span class="text-xs font-semibold" :class="budgetPct >= 100 ? 'text-red-500' : budgetPct >= 80 ? 'text-amber-500' : 'text-gray-500 dark:text-gray-400'">
+              {{ formatCurrency(filteredExpense) }} / {{ formatCurrency(selectedMonthBudget) }}
+            </span>
+            <span class="text-xs ml-1.5 font-bold" :class="budgetPct >= 100 ? 'text-red-500' : budgetPct >= 80 ? 'text-amber-500' : 'text-green-600'">
+              {{ budgetPct }}%
+            </span>
           </div>
         </div>
+        <div class="h-2.5 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">
+          <div
+            class="h-full rounded-full transition-all duration-500"
+            :class="budgetPct >= 100 ? 'bg-red-500' : budgetPct >= 80 ? 'bg-amber-400' : 'bg-green-500'"
+            :style="{ width: budgetPct + '%' }"
+          />
+        </div>
+        <p v-if="budgetPct < 100" class="text-xs text-gray-400 dark:text-gray-500 mt-1.5">
+          {{ formatCurrency(selectedMonthBudget - filteredExpense) }} remaining
+        </p>
+        <p v-else class="text-xs text-red-500 mt-1.5 font-medium">
+          Over budget by {{ formatCurrency(filteredExpense - selectedMonthBudget) }}
+        </p>
       </div>
     </BaseCard>
 

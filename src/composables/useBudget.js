@@ -4,7 +4,8 @@ import { db, auth } from '../firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 
 // Module-level singleton
-const budgets = ref({}) // { [categoryValue]: amountUSD }
+// budgets: { [monthKey]: totalAmountUSD }  e.g. { "2026-03": 500, "2026-04": 800 }
+const budgets = ref({})
 let currentUid = null
 
 onAuthStateChanged(auth, async (user) => {
@@ -28,13 +29,13 @@ async function persist() {
 }
 
 export function useBudget() {
-  const setBudget = async (category, amount) => {
-    budgets.value = { ...budgets.value, [category]: Number(amount) }
+  const setBudget = async (monthKey, total) => {
+    budgets.value = { ...budgets.value, [monthKey]: Number(total) }
     await persist()
   }
 
-  const removeBudget = async (category) => {
-    const { [category]: _removed, ...rest } = budgets.value
+  const removeBudget = async (monthKey) => {
+    const { [monthKey]: _removed, ...rest } = budgets.value
     budgets.value = rest
     await persist()
   }

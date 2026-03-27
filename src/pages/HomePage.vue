@@ -4,7 +4,6 @@ import { useTransactions } from '../composables/useTransactions'
 import { useFormat } from '../composables/useFormat'
 import { useCategories } from '../composables/useCategories'
 import { useBudget } from '../composables/useBudget'
-import { defaultExpenseCategories } from '../composables/useCategories'
 import SummaryCards from '../components/transactions/SummaryCards.vue'
 import TransactionList from '../components/transactions/TransactionList.vue'
 import TransactionForm from '../components/transactions/TransactionForm.vue'
@@ -22,7 +21,7 @@ const toast = useToast()
 const { exportToPdf } = usePdfExport()
 const { currentUser } = useAuth()
 const { getMonthName, formatCurrency, formatDate } = useFormat()
-const { getCategoryInfo } = useCategories()
+const { getCategoryInfo, expenseCategories } = useCategories()
 const { budgets } = useBudget()
 
 // ── Month filter ─────────────────────────────────────────────────────────────
@@ -228,7 +227,7 @@ const budgetProgress = computed(() => {
   const currentMonthExpenses = transactions.value.filter(
     t => t.type === 'expense' && t.date.startsWith(budgetMonthKey)
   )
-  return defaultExpenseCategories
+  return expenseCategories.value
     .filter(cat => budgets.value[cat.value])
     .map(cat => {
       const spent = currentMonthExpenses

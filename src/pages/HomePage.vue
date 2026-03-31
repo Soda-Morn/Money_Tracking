@@ -29,7 +29,8 @@ const { budgets } = useBudget()
 const now = new Date()
 const toMonthKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 
-const selectedMonth = ref(null)
+// Default to the current month so users immediately see their month's data
+const selectedMonth = ref(toMonthKey(now))
 
 const { t } = useI18n()
 
@@ -220,20 +221,45 @@ const clearDateFilter = () => { dateFilter.value = null }
 // ── Budget overview ───────────────────────────────────────────────────────────
 const showBudgetOverview = ref(true)
 
-// Show budget only when a month is selected and a budget exists for that month
+// Full budget entry for the selected month (object or null)
 const selectedMonthBudget = computed(() =>
   selectedMonth.value ? (budgets.value[selectedMonth.value] ?? null) : null
 )
 
+// Total budget amount (USD) — null means no budget set for this month
+const selectedMonthBudgetTotal = computed(() => selectedMonthBudget.value?.total ?? null)
+
+// Per-category spending limits for the selected month
+const selectedMonthCategoryBudgets = computed(() => selectedMonthBudget.value?.categories ?? {})
+
+// Total expense per category for the selected month (for category budget rows)
+const categoryExpenseMap = computed(() => {
+  const map = {}
+  filteredTransactions.value
+    .filter(t => t.type === 'expense')
+    .forEach(t => { map[t.category] = (map[t.category] || 0) + Number(t.amount) })
+  return map
+})
+
+// Rows shown in the category section of the budget overview card
+const categoryBudgetRows = computed(() =>
+  Object.entries(selectedMonthCategoryBudgets.value).map(([value, limit]) => {
+    const spent = categoryExpenseMap.value[value] || 0
+    const pct = Math.min(100, Math.round((spent / limit) * 100))
+    const info = getCategoryInfo(value, 'expense')
+    return { value, limit, spent, pct, icon: info.icon, label: info.label }
+  })
+)
+
 const budgetPct = computed(() => {
-  if (!selectedMonthBudget.value) return 0
-  return Math.min(100, Math.round((filteredExpense.value / selectedMonthBudget.value) * 100))
+  if (!selectedMonthBudgetTotal.value) return 0
+  return Math.min(100, Math.round((filteredExpense.value / selectedMonthBudgetTotal.value) * 100))
 })
 
 // Toast warning once per session when spending hits 80% of budget
 let budgetWarned = false
 watch(budgetPct, (pct) => {
-  if (pct >= 80 && !budgetWarned && selectedMonthBudget.value) {
+  if (pct >= 80 && !budgetWarned && selectedMonthBudgetTotal.value) {
     budgetWarned = true
     toast.info(`${pct}% ${t('budget_warning')}`)
   }
@@ -467,7 +493,7 @@ const cancelDelete = () => {
     />
 
     <!-- ── Budget Overview ──────────────────────────────────────────────────── -->
-    <BaseCard v-if="selectedMonthBudget !== null" padding="p-0">
+    <BaseCard v-if="selectedMonthBudgetTotal !== null" padding="p-0">
       <button
         class="w-full flex items-center justify-between px-4 py-3 text-left"
         @click="showBudgetOverview = !showBudgetOverview"
@@ -492,31 +518,61 @@ const cancelDelete = () => {
         </svg>
       </button>
 
-      <div v-if="showBudgetOverview" class="px-4 pb-4 border-t border-gray-100 dark:border-gray-700 pt-3">
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-sm font-medium text-gray-700 dark:text-gray-200">Total Spending</span>
-          <div class="text-right">
-            <span class="text-xs font-semibold" :class="budgetPct >= 100 ? 'text-red-500' : budgetPct >= 80 ? 'text-amber-500' : 'text-gray-500 dark:text-gray-400'">
-              {{ formatCurrency(filteredExpense) }} / {{ formatCurrency(selectedMonthBudget) }}
-            </span>
-            <span class="text-xs ml-1.5 font-bold" :class="budgetPct >= 100 ? 'text-red-500' : budgetPct >= 80 ? 'text-amber-500' : 'text-green-600'">
-              {{ budgetPct }}%
-            </span>
+      <div v-if="showBudgetOverview" class="px-4 pb-4 border-t border-gray-100 dark:border-gray-700 pt-3 space-y-3">
+
+        <!-- Total spending vs total budget -->
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-200">{{ t('total_spending') }}</span>
+            <div class="text-right">
+              <span class="text-xs font-semibold" :class="budgetPct >= 100 ? 'text-red-500' : budgetPct >= 80 ? 'text-amber-500' : 'text-gray-500 dark:text-gray-400'">
+                {{ formatCurrency(filteredExpense) }} / {{ formatCurrency(selectedMonthBudgetTotal) }}
+              </span>
+              <span class="text-xs ml-1.5 font-bold" :class="budgetPct >= 100 ? 'text-red-500' : budgetPct >= 80 ? 'text-amber-500' : 'text-green-600'">
+                {{ budgetPct }}%
+              </span>
+            </div>
+          </div>
+          <div class="h-2.5 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">
+            <div
+              class="h-full rounded-full transition-all duration-500"
+              :class="budgetPct >= 100 ? 'bg-red-500' : budgetPct >= 80 ? 'bg-amber-400' : 'bg-green-500'"
+              :style="{ width: budgetPct + '%' }"
+            />
+          </div>
+          <p v-if="budgetPct < 100" class="text-xs text-gray-400 dark:text-gray-500 mt-1">
+            {{ formatCurrency(selectedMonthBudgetTotal - filteredExpense) }} remaining
+          </p>
+          <p v-else class="text-xs text-red-500 mt-1 font-medium">
+            Over budget by {{ formatCurrency(filteredExpense - selectedMonthBudgetTotal) }}
+          </p>
+        </div>
+
+        <!-- Per-category budget rows (only shown when limits are set) -->
+        <div v-if="categoryBudgetRows.length > 0" class="space-y-2 pt-1 border-t border-gray-100 dark:border-gray-700">
+          <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{{ t('category_limits') }}</p>
+          <div v-for="row in categoryBudgetRows" :key="row.value" class="space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="text-xs text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                <span>{{ row.icon }}</span>{{ row.label }}
+              </span>
+              <span class="text-xs font-semibold" :class="row.pct >= 100 ? 'text-red-500' : row.pct >= 80 ? 'text-amber-500' : 'text-gray-500 dark:text-gray-400'">
+                {{ formatCurrency(row.spent) }} / {{ formatCurrency(row.limit) }}
+                <span class="font-bold ml-1" :class="row.pct >= 100 ? 'text-red-500' : row.pct >= 80 ? 'text-amber-500' : 'text-green-600'">
+                  {{ row.pct }}%
+                </span>
+              </span>
+            </div>
+            <div class="h-1.5 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">
+              <div
+                class="h-full rounded-full transition-all duration-500"
+                :class="row.pct >= 100 ? 'bg-red-500' : row.pct >= 80 ? 'bg-amber-400' : 'bg-blue-500'"
+                :style="{ width: row.pct + '%' }"
+              />
+            </div>
           </div>
         </div>
-        <div class="h-2.5 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">
-          <div
-            class="h-full rounded-full transition-all duration-500"
-            :class="budgetPct >= 100 ? 'bg-red-500' : budgetPct >= 80 ? 'bg-amber-400' : 'bg-green-500'"
-            :style="{ width: budgetPct + '%' }"
-          />
-        </div>
-        <p v-if="budgetPct < 100" class="text-xs text-gray-400 dark:text-gray-500 mt-1.5">
-          {{ formatCurrency(selectedMonthBudget - filteredExpense) }} remaining
-        </p>
-        <p v-else class="text-xs text-red-500 mt-1.5 font-medium">
-          Over budget by {{ formatCurrency(filteredExpense - selectedMonthBudget) }}
-        </p>
+
       </div>
     </BaseCard>
 

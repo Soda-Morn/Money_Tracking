@@ -77,26 +77,39 @@ export function useDataManagement() {
     const text = await file.text()
     const payload = JSON.parse(text)
 
-    if (Array.isArray(payload.transactions) && payload.transactions.length) {
-      await runInBatches(payload.transactions, (batch, tx) => {
-        const { id: _drop, ...data } = tx
-        batch.set(doc(collection(db, 'users', id, 'transactions')), data)
-      })
-    }
-    if (Array.isArray(payload.goals) && payload.goals.length) {
-      await runInBatches(payload.goals, (batch, goal) => {
-        const { id: _drop, ...data } = goal
-        batch.set(doc(collection(db, 'users', id, 'goals')), data)
-      })
-    }
-    if (Array.isArray(payload.categories) && payload.categories.length) {
-      await runInBatches(payload.categories, (batch, cat) => {
-        const { id: _drop, ...data } = cat
-        batch.set(doc(collection(db, 'users', id, 'categories')), data)
-      })
-    }
+    // Each collection is independent, so write them concurrently rather than
+    // one after another — a full-backup restore shouldn't take 4x as long
+    // as its slowest single write group.
+    await Promise.all([
+      (Array.isArray(payload.transactions) && payload.transactions.length)
+        ? runInBatches(payload.transactions, (batch, tx) => {
+            const { id: _drop, ...data } = tx
+            batch.set(doc(collection(db, 'users', id, 'transactions')), data)
+          })
+        : Promise.resolve(),
+      (Array.isArray(payload.goals) && payload.goals.length)
+        ? runInBatches(payload.goals, (batch, goal) => {
+            const { id: _drop, ...data } = goal
+            batch.set(doc(collection(db, 'users', id, 'goals')), data)
+          })
+        : Promise.resolve(),
+      (Array.isArray(payload.categories) && payload.categories.length)
+        ? runInBatches(payload.categories, (batch, cat) => {
+            const { id: _drop, ...data } = cat
+            batch.set(doc(collection(db, 'users', id, 'categories')), data)
+          })
+        : Promise.resolve(),
+      (payload.budgets && typeof payload.budgets === 'object')
+        ? setDoc(doc(db, 'users', id, 'settings', 'budgets'), payload.budgets, { merge: true })
+        : Promise.resolve(),
+    ])
+
+    // Transactions/goals/categories auto-refresh via their own onSnapshot
+    // listeners, but budgets only ever loads once (no realtime listener) —
+    // so without this, restored budget data stays invisible in the UI until
+    // a full reload.
     if (payload.budgets && typeof payload.budgets === 'object') {
-      await setDoc(doc(db, 'users', id, 'settings', 'budgets'), payload.budgets, { merge: true })
+      budgets.value = { ...budgets.value, ...payload.budgets }
     }
   }
 
@@ -105,14 +118,20 @@ export function useDataManagement() {
     const id = uid()
     if (!id) throw new Error('Not signed in')
 
-    for (const name of ['transactions', 'goals', 'categories']) {
-      const snap = await getDocs(collection(db, 'users', id, name))
-      const ids = snap.docs.map(d => d.id)
-      await runInBatches(ids, (batch, docId) => {
-        batch.delete(doc(db, 'users', id, name, docId))
-      })
-    }
-    await setDoc(doc(db, 'users', id, 'settings', 'budgets'), {})
+    await Promise.all([
+      ...['transactions', 'goals', 'categories'].map(async (name) => {
+        const snap = await getDocs(collection(db, 'users', id, name))
+        const ids = snap.docs.map(d => d.id)
+        await runInBatches(ids, (batch, docId) => {
+          batch.delete(doc(db, 'users', id, name, docId))
+        })
+      }),
+      setDoc(doc(db, 'users', id, 'settings', 'budgets'), {}),
+    ])
+
+    // Same reasoning as restoreJson — budgets has no onSnapshot listener,
+    // so clear the shared ref directly or the UI keeps showing wiped data.
+    budgets.value = {}
   }
 
   return { exportCsv, backupJson, restoreJson, resetAllData }

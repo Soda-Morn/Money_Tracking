@@ -1,4 +1,4 @@
-import { computed } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useTransactions } from './useTransactions'
 import { useBudget } from './useBudget'
@@ -19,21 +19,40 @@ export function useFinancialHealth() {
   const { transactions } = useTransactions()
   const { budgets } = useBudget()
 
-  const now = new Date()
+  // Reactive "now" — ticks every few minutes so a long-lived session (e.g. a
+  // PWA left open overnight across a month boundary) doesn't keep scoring
+  // against a month key computed once at setup and never revisited.
+  const nowTick = ref(Date.now())
+  let tickInterval = null
+  onMounted(() => {
+    tickInterval = setInterval(() => { nowTick.value = Date.now() }, 5 * 60 * 1000)
+  })
+  onBeforeUnmount(() => {
+    if (tickInterval) clearInterval(tickInterval)
+  })
+
   const monthKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-  const thisMonthKey = monthKey(now)
-  const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-  const lastMonthKey = monthKey(lastMonthDate)
+  const thisMonthKey = computed(() => {
+    nowTick.value // eslint-disable-line no-unused-expressions
+    return monthKey(new Date())
+  })
+  const lastMonthKey = computed(() => {
+    nowTick.value // eslint-disable-line no-unused-expressions
+    const now = new Date()
+    return monthKey(new Date(now.getFullYear(), now.getMonth() - 1, 1))
+  })
 
   const monthTotals = (key) => {
-    const rows = transactions.value.filter(t => t.date.startsWith(key))
+    // Defensive: a hand-edited/corrupted imported backup could contain a
+    // transaction with no `date` field — skip it rather than throwing.
+    const rows = transactions.value.filter(t => t.date && t.date.startsWith(key))
     const income = rows.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0)
     const expense = rows.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0)
     return { income, expense, rows }
   }
 
-  const thisMonth = computed(() => monthTotals(thisMonthKey))
-  const lastMonth = computed(() => monthTotals(lastMonthKey))
+  const thisMonth = computed(() => monthTotals(thisMonthKey.value))
+  const lastMonth = computed(() => monthTotals(lastMonthKey.value))
 
   // Factor 1 — savings rate (0-100, clamped; null → neutral 50)
   const savingsRate = computed(() => {
@@ -48,7 +67,7 @@ export function useFinancialHealth() {
 
   // Factor 2 — % of category budgets within limit this month
   const budgetAdherence = computed(() => {
-    const entry = budgets.value[thisMonthKey]
+    const entry = budgets.value[thisMonthKey.value]
     const categories = entry?.categories ?? {}
     const values = Object.entries(categories)
     if (values.length === 0) return null

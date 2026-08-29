@@ -221,5 +221,7 @@
   "toast_restore_error": "Failed to restore backup — check the file and try again",
   "toast_reset_success": "All data has been reset",
   "icon_label": "Choose Icon",
-  "or_type_custom_icon": "Or type custom icon:"
+  "or_type_custom_icon": "Or type custom icon:",
+  "toast_export_error": "Export failed — please try again",
+  "toast_reset_error": "Reset failed — please try again"
 }

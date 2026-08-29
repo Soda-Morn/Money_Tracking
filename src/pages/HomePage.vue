@@ -1,8 +1,8 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTransactions } from '../composables/useTransactions'
-import { useFormat } from '../composables/useFormat'
+import { useFormat, sortByDateDesc } from '../composables/useFormat'
 import { useCategories } from '../composables/useCategories'
 import { useBudget } from '../composables/useBudget'
 import { useFinancialHealth } from '../composables/useFinancialHealth'
@@ -59,15 +59,24 @@ const categoryBudgetRows = computed(() =>
 )
 
 const budgetPct = computed(() => {
-  if (!monthBudgetTotal.value) return 0
+  if (monthBudgetTotal.value == null) return 0
   return Math.min(100, Math.round((monthExpense.value / monthBudgetTotal.value) * 100))
+})
+
+// Toast warning once per visit when spending hits 80% of this month's budget
+// (mirrors the pre-redesign behavior — otherwise crossing the threshold while
+// the Budget Overview card is collapsed/off-screen goes unnoticed).
+let budgetWarned = false
+watch(budgetPct, (pct) => {
+  if (pct >= 80 && !budgetWarned && monthBudgetTotal.value) {
+    budgetWarned = true
+    toast.info(`${pct}% ${t('budget_warning')}`)
+  }
 })
 
 // ── Recent transactions preview ───────────────────────────────────────────────
 const recentTransactions = computed(() =>
-  [...transactions.value]
-    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
-    .slice(0, 5)
+  [...transactions.value].sort(sortByDateDesc).slice(0, 5)
 )
 
 // ── Quick Actions ──────────────────────────────────────────────────────────────
@@ -79,27 +88,20 @@ const openQuickAction = (type) => {
   showQuickModal.value = true
 }
 
-const quickModalTitle = computed(() => ({
-  expense: t('add_transaction'),
-  income: t('add_transaction'),
-  borrow: t('add_borrow_payback'),
-}[quickType.value]))
+const quickModalTitle = computed(() =>
+  quickType.value === 'borrow' ? t('add_borrow_payback') : t('add_transaction')
+)
 
-const handleQuickTransaction = async (data) => {
+const handleQuickSubmit = async (data) => {
   await addTransaction(data)
   showQuickModal.value = false
-  toast.success(t('toast_transaction_added'))
-}
-
-const handleQuickBorrow = async (data) => {
-  await addTransaction(data)
-  showQuickModal.value = false
-  toast.success(t('toast_record_added'))
+  toast.success(t(quickType.value === 'borrow' ? 'toast_record_added' : 'toast_transaction_added'))
 }
 
 // ── Recent transaction row actions (edit/delete inline, view goes to Activity) ──
 const showEditModal = ref(false)
 const editingTransaction = ref(null)
+const isEditingBorrow = computed(() => editingTransaction.value?.type === 'borrow' || editingTransaction.value?.type === 'payback')
 
 const handleEdit = (transaction) => {
   editingTransaction.value = transaction
@@ -110,13 +112,37 @@ const handleUpdate = async (data) => {
   await updateTransaction(editingTransaction.value.id, data)
   showEditModal.value = false
   editingTransaction.value = null
-  toast.success(t('toast_transaction_updated'))
+  toast.success(t(isEditingBorrow.value ? 'toast_record_updated' : 'toast_transaction_updated'))
 }
 
-const handleDelete = async (id) => {
-  if (!confirm(t('delete_confirm_desc'))) return
-  await deleteTransaction(id)
-  toast.success(t('toast_transaction_deleted'))
+// ── Delete confirmation (styled dialog, matches Activity/Loans pages) ────────
+const showDeleteDialog = ref(false)
+const deletingId = ref(null)
+const deletingLabel = ref('')
+
+const handleDelete = (id) => {
+  const tx = transactions.value.find(t => t.id === id)
+  deletingId.value = id
+  deletingLabel.value = tx
+    ? (tx.type === 'expense' || tx.type === 'income' ? getCategoryInfo(tx.category, tx.type).label : (tx.name || ''))
+    : ''
+  showDeleteDialog.value = true
+}
+
+const confirmDelete = async () => {
+  if (deletingId.value) {
+    await deleteTransaction(deletingId.value)
+    toast.success(t('toast_transaction_deleted'))
+  }
+  showDeleteDialog.value = false
+  deletingId.value = null
+  deletingLabel.value = ''
+}
+
+const cancelDelete = () => {
+  showDeleteDialog.value = false
+  deletingId.value = null
+  deletingLabel.value = ''
 }
 
 const goToActivity = () => router.push('/activity')
@@ -319,26 +345,101 @@ const goToActivity = () => router.push('/activity')
       <TransactionForm
         v-if="quickType === 'expense' || quickType === 'income'"
         :initial-data="{ type: quickType }"
-        @submit="handleQuickTransaction"
+        @submit="handleQuickSubmit"
         @cancel="showQuickModal = false"
       />
       <BorrowForm
         v-else
         :initial-data="{ type: 'borrow' }"
-        @submit="handleQuickBorrow"
+        @submit="handleQuickSubmit"
         @cancel="showQuickModal = false"
       />
     </BaseModal>
 
     <!-- Edit Transaction Modal (from Recent Transactions) -->
-    <BaseModal :show="showEditModal" :title="t('edit_transaction')" @close="showEditModal = false">
+    <BaseModal :show="showEditModal" :title="isEditingBorrow ? t('add_borrow_payback') : t('edit_transaction')" @close="showEditModal = false">
       <TransactionForm
-        v-if="editingTransaction"
+        v-if="editingTransaction && !isEditingBorrow"
+        :initial-data="editingTransaction"
+        :is-editing="true"
+        @submit="handleUpdate"
+        @cancel="showEditModal = false"
+      />
+      <BorrowForm
+        v-else-if="editingTransaction"
         :initial-data="editingTransaction"
         :is-editing="true"
         @submit="handleUpdate"
         @cancel="showEditModal = false"
       />
     </BaseModal>
+
+    <!-- Delete Confirmation Dialog -->
+    <Teleport to="body">
+      <Transition
+        enter-active-class="transition duration-200 ease-out"
+        enter-from-class="opacity-0"
+        enter-to-class="opacity-100"
+        leave-active-class="transition duration-150 ease-in"
+        leave-from-class="opacity-100"
+        leave-to-class="opacity-0"
+      >
+        <div
+          v-if="showDeleteDialog"
+          class="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+          @click.self="cancelDelete"
+        >
+          <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+          <Transition
+            enter-active-class="transition duration-200 ease-out"
+            enter-from-class="translate-y-4 opacity-0 sm:scale-95"
+            enter-to-class="translate-y-0 opacity-100 sm:scale-100"
+            leave-active-class="transition duration-150 ease-in"
+            leave-from-class="translate-y-0 opacity-100 sm:scale-100"
+            leave-to-class="translate-y-4 opacity-0 sm:scale-95"
+          >
+            <div
+              v-if="showDeleteDialog"
+              class="relative w-full sm:max-w-sm mx-auto bg-white dark:bg-gray-800 rounded-t-3xl sm:rounded-2xl shadow-2xl px-6 pt-6 pb-8 sm:pb-6"
+            >
+              <div class="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto mb-5 sm:hidden" />
+              <div class="flex items-center justify-center mb-4">
+                <div class="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center">
+                  <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </div>
+              </div>
+              <h3 class="text-lg font-bold text-center text-gray-900 dark:text-white mb-1">
+                {{ t('delete_confirm_title') }}
+              </h3>
+              <p class="text-sm text-center text-gray-500 dark:text-gray-400 mb-6">
+                <template v-if="deletingLabel">
+                  {{ t('delete_confirm_name', { name: deletingLabel }) }}
+                </template>
+                <template v-else>
+                  {{ t('delete_confirm_desc') }}
+                </template>
+              </p>
+              <div class="flex flex-col-reverse sm:flex-row gap-3">
+                <button
+                  class="flex-1 py-3 rounded-xl border border-gray-200 dark:border-gray-600 text-sm font-semibold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                  @click="cancelDelete"
+                >
+                  {{ t('cancel') }}
+                </button>
+                <button
+                  class="flex-1 py-3 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 active:bg-red-700 transition-colors shadow-sm"
+                  @click="confirmDelete"
+                >
+                  {{ t('delete') }}
+                </button>
+              </div>
+            </div>
+          </Transition>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>

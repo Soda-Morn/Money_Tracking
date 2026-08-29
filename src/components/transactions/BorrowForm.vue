@@ -29,7 +29,9 @@ const form = ref({
   date: props.initialData.date || getCurrentDate()
 })
 
-const isValid = computed(() => form.value.amount > 0 && form.value.date)
+// Name is required (not just cosmetic) — records with no name are unreachable
+// in the Active Balances list, which groups and filters entirely by name.
+const isValid = computed(() => form.value.amount > 0 && form.value.date && form.value.name.trim().length > 0)
 
 const handleSubmit = () => {
   if (!isValid.value) return
@@ -71,7 +73,8 @@ const handleSubmit = () => {
       <BaseInput
         v-model="form.name"
         :label="t('name')"
-        :placeholder="t('name_placeholder')"
+        placeholder="e.g., John Doe"
+        :required="true"
       />
       <BaseInput
         v-model="form.amount"

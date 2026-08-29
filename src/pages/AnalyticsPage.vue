@@ -57,8 +57,18 @@ const prevPeriodRange = computed(() => {
   return { start: new Date(y, m, 1), end: new Date(y, m + 1, 0, 23, 59, 59) }
 })
 
+// Parse a 'YYYY-MM-DD' string as a local-time date (not UTC midnight) so it
+// compares correctly against the local-time range boundaries below — using
+// `new Date(dateStr)` directly would parse as UTC and could shift a
+// transaction into the wrong period for users behind UTC.
+const parseLocalDate = (dateStr) => {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
 const inRange = (dateStr, range) => {
-  const d = new Date(dateStr)
+  if (!dateStr) return false // defensive: a malformed imported record could lack a date
+  const d = parseLocalDate(dateStr)
   return d >= range.start && d <= range.end
 }
 
@@ -115,6 +125,7 @@ const savingsRate = computed(() => {
 const avgDailySpend = computed(() => {
   const { start, end } = periodRange.value
   const today = new Date()
+  if (start > today) return null // period hasn't started yet — nothing to average
   const effectiveEnd = end > today ? today : end
   const days = Math.max(1, Math.round((effectiveEnd - start) / 86400000) + 1)
   return periodExpense.value / days
@@ -246,7 +257,7 @@ const nextPeriod = () => {
         </div>
         <div class="rounded-2xl border p-4 bg-tertiary-50 dark:bg-tertiary-900/20 border-tertiary-200 dark:border-tertiary-800">
           <p class="text-xs font-semibold text-tertiary-700 dark:text-tertiary-400 uppercase tracking-wide mb-1">{{ t('insight_avg_daily') }}</p>
-          <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ formatCurrency(avgDailySpend) }}</p>
+          <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ avgDailySpend === null ? '—' : formatCurrency(avgDailySpend) }}</p>
         </div>
         <div :class="[
           'rounded-2xl border p-4',

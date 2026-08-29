@@ -4,6 +4,10 @@
 import { useI18n } from 'vue-i18n'
 import { useCurrency } from './useCurrency'
 
+// Comparator for sorting objects with a 'YYYY-MM-DD' `date` field, newest first.
+// Plain function (not part of useFormat()) since it needs no reactive i18n/currency state.
+export const sortByDateDesc = (a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)
+
 export function useFormat() {
   const { locale, t } = useI18n()
   const { currency, convertAmount } = useCurrency()

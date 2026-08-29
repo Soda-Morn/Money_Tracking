@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { useFormat } from '../../composables/useFormat'
+import { useFormat, sortByDateDesc } from '../../composables/useFormat'
 import { useI18n } from 'vue-i18n'
 import BaseModal from '../ui/BaseModal.vue'
 import EmptyState from '../ui/EmptyState.vue'
@@ -16,9 +16,7 @@ const emit = defineEmits(['close', 'edit', 'delete', 'addRecord'])
 const { formatCurrency, formatDate } = useFormat()
 const { t } = useI18n()
 
-const sorted = computed(() =>
-  [...props.transactions].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
-)
+const sorted = computed(() => [...props.transactions].sort(sortByDateDesc))
 
 const totals = computed(() => {
   const borrowed = props.transactions.filter(t => t.type === 'borrow').reduce((s, t) => s + Number(t.amount), 0)

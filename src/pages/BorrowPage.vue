@@ -13,14 +13,16 @@ import { useToast } from '../composables/useToast'
 
 const { t } = useI18n()
 const toast = useToast()
-const { transactions, addTransaction, updateTransaction, deleteTransaction } = useTransactions()
+const { transactions, addTransaction, updateTransaction, deleteTransaction, totalBorrow, totalPayback } = useTransactions()
 const { formatCurrency } = useFormat()
 
 const borrowTransactions = computed(() => transactions.value.filter(t => t.type === 'borrow'))
 const paybackTransactions = computed(() => transactions.value.filter(t => t.type === 'payback'))
 
-const totalBorrowed = computed(() => borrowTransactions.value.reduce((s, t) => s + Number(t.amount), 0))
-const totalPaidBack = computed(() => paybackTransactions.value.reduce((s, t) => s + Number(t.amount), 0))
+// Reuse the canonical totals already computed by useTransactions() rather
+// than re-deriving the same sums here.
+const totalBorrowed = totalBorrow
+const totalPaidBack = totalPayback
 
 // ── Active Balances (one row per person) ──────────────────────────────────────
 const personSummary = computed(() => {
@@ -42,6 +44,17 @@ const personSummary = computed(() => {
     .sort((a, b) => Math.abs(b.net) - Math.abs(a.net))
 })
 
+// Net across everyone at once — the at-a-glance "total owed to me" figure
+const netAcrossAll = computed(() => personSummary.value.reduce((s, p) => s + p.net, 0))
+
+// Name filter — search across people once the list grows
+const filterName = ref('')
+const filteredPersonSummary = computed(() => {
+  const q = filterName.value.trim().toLowerCase()
+  if (!q) return personSummary.value
+  return personSummary.value.filter(p => p.name.toLowerCase().includes(q))
+})
+
 // ── Person ledger modal ────────────────────────────────────────────────────────
 const showLedgerModal = ref(false)
 const selectedPersonName = ref('')
@@ -51,10 +64,12 @@ const openLedger = (name) => {
   showLedgerModal.value = true
 }
 
+// Combine the already-filtered borrow/payback arrays instead of re-scanning
+// the full transaction history (which includes unrelated income/expense rows).
 const personLedgerTransactions = computed(() => {
   if (!selectedPersonName.value) return []
-  return transactions.value.filter(
-    t => (t.type === 'borrow' || t.type === 'payback') && (t.name || '').trim() === selectedPersonName.value
+  return [...borrowTransactions.value, ...paybackTransactions.value].filter(
+    t => (t.name || '').trim() === selectedPersonName.value
   )
 })
 
@@ -63,20 +78,32 @@ const showFormModal = ref(false)
 const isEditing = ref(false)
 const editingId = ref(null)
 const formInitialData = ref({})
+// Whether the form was opened from inside the ledger modal — if so, closing
+// the form should return the user to that ledger instead of the bare list.
+const cameFromLedger = ref(false)
 
 const openAddModal = (prefillName = '') => {
+  cameFromLedger.value = !!prefillName
   formInitialData.value = prefillName ? { type: 'borrow', name: prefillName } : { type: 'borrow' }
   isEditing.value = false
   editingId.value = null
+  showLedgerModal.value = false
   showFormModal.value = true
 }
 
 const openEditModal = (transaction) => {
+  cameFromLedger.value = true
   formInitialData.value = { ...transaction }
   isEditing.value = true
   editingId.value = transaction.id
   showLedgerModal.value = false
   showFormModal.value = true
+}
+
+const closeFormModal = () => {
+  showFormModal.value = false
+  if (cameFromLedger.value) showLedgerModal.value = true
+  cameFromLedger.value = false
 }
 
 const handleFormSubmit = async (data) => {
@@ -87,7 +114,7 @@ const handleFormSubmit = async (data) => {
     await addTransaction(data)
     toast.success(t('toast_record_added'))
   }
-  showFormModal.value = false
+  closeFormModal()
 }
 
 // ── Delete confirmation ────────────────────────────────────────────────────────
@@ -147,22 +174,51 @@ const cancelDelete = () => {
       + {{ t('add_borrow_payback') }}
     </button>
 
+    <!-- Name Filter -->
+    <div v-if="personSummary.length > 0" class="relative max-w-xs">
+      <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
+      </svg>
+      <input
+        v-model="filterName"
+        type="text"
+        :placeholder="t('filter_by_name')"
+        class="w-full pl-9 pr-8 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+      />
+      <button
+        v-if="filterName"
+        class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+        @click="filterName = ''"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
     <!-- Active Balances -->
     <BaseCard padding="p-0">
-      <div class="flex items-center gap-2 px-4 py-3 border-b border-gray-100 dark:border-gray-700">
-        <div class="w-8 h-8 bg-primary-100 dark:bg-primary-900/40 rounded-xl flex items-center justify-center">
-          <svg class="w-4 h-4 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
+      <div class="flex items-center justify-between gap-2 px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+        <div class="flex items-center gap-2 min-w-0">
+          <div class="w-8 h-8 bg-primary-100 dark:bg-primary-900/40 rounded-xl flex items-center justify-center shrink-0">
+            <svg class="w-4 h-4 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </div>
+          <span class="text-sm font-semibold text-gray-900 dark:text-white shrink-0">{{ t('active_balances') }}</span>
+          <span class="text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full shrink-0">{{ filteredPersonSummary.length }}</span>
         </div>
-        <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('active_balances') }}</span>
-        <span class="text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full">{{ personSummary.length }}</span>
+        <span
+          v-if="netAcrossAll !== 0"
+          class="text-xs font-bold shrink-0"
+          :class="netAcrossAll > 0 ? 'text-amber-500' : 'text-green-600'"
+        >{{ netAcrossAll > 0 ? t('owes_you') : t('you_owe') }} {{ formatCurrency(Math.abs(netAcrossAll)) }}</span>
       </div>
 
-      <EmptyState v-if="personSummary.length === 0" :title="t('no_transactions_title')" icon="folder" />
+      <EmptyState v-if="filteredPersonSummary.length === 0" :title="t('no_transactions_title')" icon="folder" />
       <div v-else class="divide-y divide-gray-100 dark:divide-gray-700">
         <button
-          v-for="person in personSummary"
+          v-for="person in filteredPersonSummary"
           :key="person.name"
           class="w-full px-4 py-3.5 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors text-left flex items-center justify-between gap-3"
           @click="openLedger(person.name)"
@@ -203,12 +259,12 @@ const cancelDelete = () => {
     />
 
     <!-- Add/Edit Modal -->
-    <BaseModal :show="showFormModal" :title="t('add_borrow_payback')" @close="showFormModal = false">
+    <BaseModal :show="showFormModal" :title="t('add_borrow_payback')" @close="closeFormModal">
       <BorrowForm
         :initial-data="formInitialData"
         :is-editing="isEditing"
         @submit="handleFormSubmit"
-        @cancel="showFormModal = false"
+        @cancel="closeFormModal"
       />
     </BaseModal>
 

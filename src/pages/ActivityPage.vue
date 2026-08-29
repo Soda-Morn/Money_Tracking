@@ -273,7 +273,7 @@ const handleExportPdf = async () => {
   isExporting.value = true
   try {
     await new Promise(r => setTimeout(r, 50)) // let spinner render
-    exportToPdf({
+    await exportToPdf({
       transactions: dateFilteredTransactions.value,
       monthLabel: monthLabel.value,
       income:   dateFilteredTransactions.value.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0),
@@ -284,6 +284,8 @@ const handleExportPdf = async () => {
       userName: currentUser.value?.displayName || currentUser.value?.email || null,
     })
     toast.success('PDF exported successfully')
+  } catch (e) {
+    toast.error(t('toast_export_error'))
   } finally {
     isExporting.value = false
   }

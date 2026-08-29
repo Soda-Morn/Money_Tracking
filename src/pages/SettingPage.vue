@@ -95,7 +95,7 @@ const handleExportPdf = async () => {
   if (isExportingPdf.value) return
   isExportingPdf.value = true
   try {
-    exportToPdf({
+    await exportToPdf({
       transactions: transactions.value,
       monthLabel: t('all_transactions'),
       income: totalIncome.value,
@@ -106,6 +106,8 @@ const handleExportPdf = async () => {
       userName: currentUser.value?.displayName || currentUser.value?.email || null,
     })
     toast.success(t('toast_export_success'))
+  } catch (e) {
+    toast.error(t('toast_export_error'))
   } finally {
     isExportingPdf.value = false
   }
@@ -156,6 +158,8 @@ const confirmReset = async () => {
     toast.success(t('toast_reset_success'))
     showResetDialog.value = false
     router.push('/')
+  } catch (e) {
+    toast.error(t('toast_reset_error'))
   } finally {
     isResetting.value = false
   }

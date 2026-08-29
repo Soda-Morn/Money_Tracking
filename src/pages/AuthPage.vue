@@ -52,7 +52,7 @@ const handleSubmit = async () => {
   <div class="min-h-screen bg-white lg:flex">
 
     <!-- ── Desktop left branding panel ─────────────────────────────────── -->
-    <div class="hidden lg:flex lg:w-[45%] bg-gradient-to-br from-blue-600 via-blue-700 to-blue-900 flex-col justify-between p-12 relative overflow-hidden">
+    <div class="hidden lg:flex lg:w-[45%] bg-gradient-to-br from-primary-600 via-primary-700 to-primary-900 flex-col justify-between p-12 relative overflow-hidden">
       <!-- Background decoration -->
       <div class="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2"></div>
       <div class="absolute bottom-0 left-0 w-80 h-80 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2"></div>
@@ -65,7 +65,7 @@ const handleSubmit = async () => {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <span class="text-white font-bold text-xl">Money Tracking</span>
+          <span class="text-white font-bold text-xl">FinanceFlow</span>
         </div>
       </div>
 
@@ -74,7 +74,7 @@ const handleSubmit = async () => {
         <h2 class="text-4xl font-bold text-white leading-tight mb-4">
           Take control of<br />your finances
         </h2>
-        <p class="text-blue-100 text-lg mb-10">
+        <p class="text-primary-100 text-lg mb-10">
           Simple, powerful tools to help you track, save, and grow.
         </p>
         <div class="space-y-4">
@@ -88,27 +88,27 @@ const handleSubmit = async () => {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="feature.icon" />
               </svg>
             </div>
-            <span class="text-blue-50 text-sm">{{ feature.text }}</span>
+            <span class="text-primary-50 text-sm">{{ feature.text }}</span>
           </div>
         </div>
       </div>
 
       <!-- Footer -->
-      <p class="relative z-10 text-blue-200/60 text-xs">© 2026 Money Tracking</p>
+      <p class="relative z-10 text-primary-200/60 text-xs">© 2026 FinanceFlow</p>
     </div>
 
     <!-- ── Right panel (form) ────────────────────────────────────────────── -->
     <div class="flex-1 flex flex-col">
 
       <!-- Mobile: gradient top bar -->
-      <div class="lg:hidden bg-gradient-to-br from-blue-600 to-blue-800 px-6 pt-14 pb-20 flex flex-col items-center text-center">
+      <div class="lg:hidden bg-gradient-to-br from-primary-600 to-primary-800 px-6 pt-14 pb-20 flex flex-col items-center text-center">
         <div class="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center mb-4">
           <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </div>
-        <h1 class="text-2xl font-bold text-white">Money Tracking</h1>
-        <p class="text-blue-100 text-sm mt-1">Take control of your finances</p>
+        <h1 class="text-2xl font-bold text-white">FinanceFlow</h1>
+        <p class="text-primary-100 text-sm mt-1">Take control of your finances</p>
       </div>
 
       <!-- Form card -->
@@ -169,7 +169,7 @@ const handleSubmit = async () => {
                   type="text"
                   placeholder="John Doe"
                   required
-                  class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all placeholder-gray-400"
+                  class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all placeholder-gray-400"
                 />
               </div>
             </Transition>
@@ -182,7 +182,7 @@ const handleSubmit = async () => {
                 type="email"
                 placeholder="you@example.com"
                 required
-                class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all placeholder-gray-400"
+                class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all placeholder-gray-400"
               />
             </div>
 
@@ -195,7 +195,7 @@ const handleSubmit = async () => {
                   :type="showPassword ? 'text' : 'password'"
                   placeholder="••••••••"
                   required
-                  class="w-full px-4 py-3 pr-12 rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all placeholder-gray-400"
+                  class="w-full px-4 py-3 pr-12 rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all placeholder-gray-400"
                 />
                 <button
                   type="button"
@@ -219,7 +219,7 @@ const handleSubmit = async () => {
             <button
               type="submit"
               :disabled="loading"
-              class="w-full py-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed mt-2"
+              class="w-full py-3 bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed mt-2"
             >
               <svg v-if="loading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
@@ -233,7 +233,7 @@ const handleSubmit = async () => {
           <p class="text-center text-sm text-gray-500 mt-6">
             {{ activeTab === 'login' ? "Don't have an account?" : 'Already have an account?' }}
             <button
-              class="text-blue-600 font-semibold hover:underline ml-1"
+              class="text-primary-600 font-semibold hover:underline ml-1"
               @click="switchTab(activeTab === 'login' ? 'register' : 'login')"
             >
               {{ activeTab === 'login' ? 'Create one' : 'Sign in' }}

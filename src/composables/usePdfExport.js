@@ -5,8 +5,8 @@ import html2canvas from 'html2canvas'
 const TYPE_STYLE = {
   income:  { row: '#f0fdf4', amount: '#15803d', badge: '#dcfce7', badgeText: '#166534' },
   expense: { row: '#fff5f5', amount: '#b91c1c', badge: '#fee2e2', badgeText: '#991b1b' },
-  borrow:  { row: '#eff6ff', amount: '#1d4ed8', badge: '#dbeafe', badgeText: '#1e40af' },
-  payback: { row: '#f5f3ff', amount: '#6d28d9', badge: '#ede9fe', badgeText: '#5b21b6' },
+  borrow:  { row: '#eaf4f1', amount: '#0a3d33', badge: '#cde6dd', badgeText: '#082f27' },
+  payback: { row: '#f7f0ea', amount: '#502d1a', badge: '#ecdac8', badgeText: '#3c2214' },
 }
 
 // ── Table pieces ──────────────────────────────────────────────────────────────
@@ -16,7 +16,7 @@ const TH_STYLE = `
   color: #ffffff;
   font-size: 10px;
   font-weight: 700;
-  background: #1e3a8a;
+  background: #0a3d33;
 `
 
 function tableHeader() {
@@ -86,8 +86,8 @@ function footer(pageNum, totalPages) {
       align-items: center;
     ">
       <span style="font-size:9.5px;color:#9ca3af;">
-        Money Tracking &nbsp;·&nbsp; Made by
-        <strong style="color:#2563eb;">Soda MORN</strong>
+        FinanceFlow &nbsp;·&nbsp; Made by
+        <strong style="color:#0d4d40;">Soda MORN</strong>
       </span>
       <span style="font-size:9.5px;color:#9ca3af;font-weight:600;">
         Page ${pageNum} / ${totalPages}
@@ -106,7 +106,7 @@ function buildPage1(opts, chunk, pageNum, totalPages) {
 
       <!-- ── HEADER ── -->
       <div style="
-        background: linear-gradient(120deg, #1e40af 0%, #2563eb 55%, #4f46e5 100%);
+        background: linear-gradient(120deg, #082f27 0%, #0d4d40 55%, #3d6f8e 100%);
         padding: 22px 28px 20px;
         overflow: hidden;
         position: relative;
@@ -125,16 +125,16 @@ function buildPage1(opts, chunk, pageNum, totalPages) {
                 display:flex;align-items:center;justify-content:center;
                 font-size:16px;line-height:1;
               ">💵</div>
-              <span style="color:#fff;font-size:18px;font-weight:800;letter-spacing:-0.5px;">Money Tracking</span>
+              <span style="color:#fff;font-size:18px;font-weight:800;letter-spacing:-0.5px;">FinanceFlow</span>
             </div>
-            <p style="color:#bfdbfe;font-size:11.5px;margin:0;line-height:1.4;">
+            <p style="color:#cde6dd;font-size:11.5px;margin:0;line-height:1.4;">
               Transaction Report &nbsp;—&nbsp;
               <strong style="color:#ffffff;">${monthLabel}</strong>
             </p>
           </div>
           <div style="text-align:right;padding-top:2px;">
-            <p style="color:#bfdbfe;font-size:9.5px;margin:0 0 4px 0;">Generated: ${now}</p>
-            ${userName ? `<p style="color:#93c5fd;font-size:9.5px;margin:0;font-weight:600;">By: ${userName}</p>` : ''}
+            <p style="color:#cde6dd;font-size:9.5px;margin:0 0 4px 0;">Generated: ${now}</p>
+            ${userName ? `<p style="color:#9ccdbe;font-size:9.5px;margin:0;font-weight:600;">By: ${userName}</p>` : ''}
           </div>
         </div>
       </div>
@@ -149,8 +149,8 @@ function buildPage1(opts, chunk, pageNum, totalPages) {
           <p style="color:#b91c1c;font-size:9px;font-weight:700;margin:0 0 6px;text-transform:uppercase;letter-spacing:.6px;">Total Expense</p>
           <p style="color:#b91c1c;font-size:18px;font-weight:800;margin:0;line-height:1.2;">${formatCurrency(expense)}</p>
         </div>
-        <div style="flex:1;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:12px;padding:14px 16px;">
-          <p style="color:#1d4ed8;font-size:9px;font-weight:700;margin:0 0 6px;text-transform:uppercase;letter-spacing:.6px;">Net Balance</p>
+        <div style="flex:1;background:#eaf4f1;border:1.5px solid #9ccdbe;border-radius:12px;padding:14px 16px;">
+          <p style="color:#0a3d33;font-size:9px;font-weight:700;margin:0 0 6px;text-transform:uppercase;letter-spacing:.6px;">Net Balance</p>
           <p style="color:${balColor};font-size:18px;font-weight:800;margin:0;line-height:1.2;">${formatCurrency(balance)}</p>
         </div>
       </div>
@@ -188,16 +188,16 @@ function buildPageN(opts, chunk, offset, pageNum, totalPages) {
 
       <!-- slim header -->
       <div style="
-        background: #1e3a8a;
+        background: #0a3d33;
         padding: 13px 28px;
         display: flex;
         justify-content: space-between;
         align-items: center;
       ">
         <span style="color:#fff;font-size:12px;font-weight:700;">
-          Money Tracking &nbsp;·&nbsp; ${monthLabel}
+          FinanceFlow &nbsp;·&nbsp; ${monthLabel}
         </span>
-        <span style="color:#93c5fd;font-size:10px;font-weight:500;">Continued</span>
+        <span style="color:#9ccdbe;font-size:10px;font-weight:500;">Continued</span>
       </div>
 
       <!-- table -->

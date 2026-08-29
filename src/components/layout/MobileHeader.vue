@@ -14,6 +14,7 @@ const showMenu = ref(false)
 const pageTitle = computed(() => {
   const titles = {
     '/':                  t('pages.dashboard'),
+    '/activity':          t('pages.activity'),
     '/savings':           t('pages.savings'),
     '/analytics':         t('pages.analytics'),
     '/settings':          t('pages.settings'),
@@ -21,7 +22,7 @@ const pageTitle = computed(() => {
     '/settings/budget':     t('pages.budget'),
     '/borrow':            t('pages.borrow'),
   }
-  return titles[route.path] || 'Money Tracking'
+  return titles[route.path] || 'FinanceFlow'
 })
 
 const userInitials = computed(() => {
@@ -42,7 +43,7 @@ const handleLogout = async () => {
     <div class="flex items-center justify-between h-14 px-4">
       <!-- Left: logo + page title -->
       <div class="flex items-center gap-2.5">
-        <div class="w-7 h-7 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shrink-0 shadow-md shadow-blue-500/20">
+        <div class="w-7 h-7 bg-gradient-to-br from-primary-500 to-secondary-600 rounded-xl flex items-center justify-center shrink-0 shadow-md shadow-primary-500/20">
           <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
@@ -50,13 +51,25 @@ const handleLogout = async () => {
         <span class="text-base font-bold text-gray-900 dark:text-white tracking-tight">{{ pageTitle }}</span>
       </div>
 
-      <!-- Right: user avatar button -->
-      <button
-        class="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md shadow-blue-500/20 active:scale-95 transition-transform"
-        @click="showMenu = !showMenu"
-      >
-        {{ userInitials }}
-      </button>
+      <!-- Right: settings + user avatar -->
+      <div class="flex items-center gap-1.5">
+        <router-link
+          to="/settings"
+          class="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-95 transition-all"
+          :title="t('settings')"
+        >
+          <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        </router-link>
+        <button
+          class="w-8 h-8 bg-gradient-to-br from-primary-500 to-secondary-600 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md shadow-primary-500/20 active:scale-95 transition-transform"
+          @click="showMenu = !showMenu"
+        >
+          {{ userInitials }}
+        </button>
+      </div>
     </div>
 
     <!-- User dropdown menu -->
@@ -71,7 +84,7 @@ const handleLogout = async () => {
         <div class="px-4 py-3">
           <!-- User info -->
           <div class="flex items-center gap-3 mb-3 p-3 bg-gray-50 dark:bg-gray-800/60 rounded-2xl">
-            <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center text-white text-sm font-bold shrink-0 shadow-md shadow-blue-500/20">
+            <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-secondary-600 rounded-xl flex items-center justify-center text-white text-sm font-bold shrink-0 shadow-md shadow-primary-500/20">
               {{ userInitials }}
             </div>
             <div class="min-w-0">

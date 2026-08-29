@@ -1,6 +1,8 @@
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue'
 import { Chart, registerables } from 'chart.js'
+import { useCategories } from '../../composables/useCategories'
+import { useFormat } from '../../composables/useFormat'
 
 Chart.register(...registerables)
 
@@ -15,53 +17,36 @@ const props = defineProps({
   }
 })
 
+const { getCategoryInfo } = useCategories()
+const { formatCurrency } = useFormat()
+
 const chartRef = ref(null)
 let chartInstance = null
 
-const categoryLabels = {
-  food: 'Food & Dining',
-  transport: 'Transportation',
-  shopping: 'Shopping',
-  bills: 'Bills & Utilities',
-  entertainment: 'Entertainment',
-  health: 'Health',
-  education: 'Education',
-  salary: 'Salary',
-  freelance: 'Freelance',
-  investment: 'Investment',
-  gift: 'Gift',
-  other: 'Other'
-}
-
-const categoryColors = {
-  food: '#EF4444',
-  transport: '#F97316',
-  shopping: '#EAB308',
-  bills: '#22C55E',
-  entertainment: '#06B6D4',
-  health: '#3B82F6',
-  education: '#8B5CF6',
-  salary: '#10B981',
-  freelance: '#6366F1',
-  investment: '#EC4899',
-  gift: '#F59E0B',
-  other: '#6B7280'
-}
+// Brand-derived palette (teal/blue/brown family), cycled by index so custom
+// user-created categories get a distinct color too instead of falling back to gray.
+const PALETTE = [
+  '#0d4d40', '#4d88ac', '#663a21', '#227560', '#6a9cba',
+  '#955f37', '#3d6f8e', '#c08e5c', '#86b4cd', '#502d1a',
+  '#9ccdbe', '#b1d0e2',
+]
 
 const chartData = computed(() => {
   const grouped = {}
   props.data.forEach(t => {
     if (!grouped[t.category]) {
-      grouped[t.category] = 0
+      grouped[t.category] = { total: 0, type: t.type }
     }
-    grouped[t.category] += Number(t.amount)
+    grouped[t.category].total += Number(t.amount)
   })
 
-  const labels = Object.keys(grouped).map(k => categoryLabels[k] || k)
-  const values = Object.values(grouped)
-  const colors = Object.keys(grouped).map(k => categoryColors[k] || '#6B7280')
+  const entries = Object.entries(grouped)
+  const labels = entries.map(([cat, info]) => getCategoryInfo(cat, info.type).label)
+  const values = entries.map(([, info]) => info.total)
+  const colors = entries.map((_, i) => PALETTE[i % PALETTE.length])
+  const total = values.reduce((s, v) => s + v, 0)
 
-  return { labels, values, colors }
+  return { labels, values, colors, total }
 })
 
 const createChart = () => {
@@ -86,6 +71,7 @@ const createChart = () => {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      cutout: props.type === 'doughnut' ? '68%' : undefined,
       plugins: {
         legend: {
           position: 'bottom',
@@ -112,5 +98,12 @@ watch(() => props.data, () => {
 <template>
   <div class="relative h-64">
     <canvas ref="chartRef"></canvas>
+    <div
+      v-if="type === 'doughnut' && chartData.labels.length > 0"
+      class="absolute inset-x-0 top-0 h-[calc(100%-2.75rem)] flex flex-col items-center justify-center pointer-events-none"
+    >
+      <span class="text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide">Total</span>
+      <span class="text-lg font-bold text-gray-900 dark:text-white">{{ formatCurrency(chartData.total) }}</span>
+    </div>
   </div>
 </template>

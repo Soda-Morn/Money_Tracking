@@ -1,249 +1,56 @@
 <script setup>
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { useTransactions } from '../composables/useTransactions'
 import { useFormat } from '../composables/useFormat'
 import { useCategories } from '../composables/useCategories'
 import { useBudget } from '../composables/useBudget'
-import SummaryCards from '../components/transactions/SummaryCards.vue'
-import TransactionList from '../components/transactions/TransactionList.vue'
-import TransactionForm from '../components/transactions/TransactionForm.vue'
+import { useFinancialHealth } from '../composables/useFinancialHealth'
 import BaseCard from '../components/ui/BaseCard.vue'
-import BaseButton from '../components/ui/BaseButton.vue'
 import BaseModal from '../components/ui/BaseModal.vue'
-import MobileFAB from '../components/ui/MobileFAB.vue'
+import TransactionForm from '../components/transactions/TransactionForm.vue'
+import BorrowForm from '../components/transactions/BorrowForm.vue'
+import TransactionItem from '../components/transactions/TransactionItem.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
 import { useToast } from '../composables/useToast'
-import { usePdfExport } from '../composables/usePdfExport'
-import { useAuth } from '../composables/useAuth'
 import { useI18n } from 'vue-i18n'
 
-const { transactions, addTransaction, updateTransaction, deleteTransaction } = useTransactions()
+const router = useRouter()
+const { t } = useI18n()
 const toast = useToast()
-const { exportToPdf } = usePdfExport()
-const { currentUser } = useAuth()
-const { getMonthName, formatCurrency, formatDate } = useFormat()
+const { transactions, addTransaction, updateTransaction, deleteTransaction } = useTransactions()
+const { formatCurrency } = useFormat()
 const { getCategoryInfo } = useCategories()
 const { budgets } = useBudget()
+const { score: healthScore, description: healthDescription } = useFinancialHealth()
 
-// ── Month filter ─────────────────────────────────────────────────────────────
-// null = show ALL transactions (default); 'YYYY-MM' = filter to that month
+// ── Current-month totals (Dashboard always reflects the current month) ───────
 const now = new Date()
-const toMonthKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
-// Default to the current month so users immediately see their month's data
-const selectedMonth = ref(toMonthKey(now))
+const monthTransactions = computed(() => transactions.value.filter(t => t.date.startsWith(monthKey)))
+const monthIncome = computed(() => monthTransactions.value.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0))
+const monthExpense = computed(() => monthTransactions.value.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0))
+const monthBorrow = computed(() => monthTransactions.value.filter(t => t.type === 'borrow').reduce((s, t) => s + Number(t.amount), 0))
+const monthPayback = computed(() => monthTransactions.value.filter(t => t.type === 'payback').reduce((s, t) => s + Number(t.amount), 0))
+const totalBalance = computed(() => monthIncome.value - monthExpense.value + monthBorrow.value - monthPayback.value)
 
-const { t } = useI18n()
-
-const monthLabel = computed(() => {
-  if (!selectedMonth.value) return t('all_transactions')
-  const [year, month] = selectedMonth.value.split('-').map(Number)
-  return `${getMonthName(month - 1)} ${year}`
-})
-
-const prevMonth = () => {
-  if (!selectedMonth.value) {
-    selectedMonth.value = toMonthKey(now)
-    return
-  }
-  const [year, month] = selectedMonth.value.split('-').map(Number)
-  selectedMonth.value = toMonthKey(new Date(year, month - 2))
-}
-
-const nextMonth = () => {
-  if (!selectedMonth.value) {
-    selectedMonth.value = toMonthKey(now)
-    return
-  }
-  const [year, month] = selectedMonth.value.split('-').map(Number)
-  selectedMonth.value = toMonthKey(new Date(year, month))
-}
-
-const clearMonthFilter = () => {
-  selectedMonth.value = null
-  showMonthPicker.value = false
-}
-
-// ── Month picker ──────────────────────────────────────────────────────────────
-const shortMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-const showMonthPicker = ref(false)
-const pickerYear = ref(now.getFullYear())
-
-const openPicker = () => {
-  pickerYear.value = selectedMonth.value
-    ? Number(selectedMonth.value.split('-')[0])
-    : now.getFullYear()
-  showMonthPicker.value = true
-}
-
-const closePicker = () => { showMonthPicker.value = false }
-
-const isMonthSelected = (i) => {
-  if (!selectedMonth.value) return false
-  const [year, month] = selectedMonth.value.split('-').map(Number)
-  return pickerYear.value === year && i === month - 1
-}
-
-const selectMonth = (i) => {
-  selectedMonth.value = `${pickerYear.value}-${String(i + 1).padStart(2, '0')}`
-  showMonthPicker.value = false
-}
-
-// ── Filtered data ─────────────────────────────────────────────────────────────
-// null selectedMonth → return all; otherwise filter by month prefix
-const filteredTransactions = computed(() => {
-  if (!selectedMonth.value) return transactions.value
-  return transactions.value.filter(t => t.date.startsWith(selectedMonth.value))
-})
-
-const filteredIncome = computed(() =>
-  filteredTransactions.value
-    .filter(t => t.type === 'income')
-    .reduce((sum, t) => sum + Number(t.amount), 0)
-)
-
-const filteredExpense = computed(() =>
-  filteredTransactions.value
-    .filter(t => t.type === 'expense')
-    .reduce((sum, t) => sum + Number(t.amount), 0)
-)
-
-const filteredBorrow = computed(() =>
-  filteredTransactions.value
-    .filter(t => t.type === 'borrow')
-    .reduce((sum, t) => sum + Number(t.amount), 0)
-)
-
-const filteredPayback = computed(() =>
-  filteredTransactions.value
-    .filter(t => t.type === 'payback')
-    .reduce((sum, t) => sum + Number(t.amount), 0)
-)
-
-const filteredBalance = computed(() => filteredIncome.value - filteredExpense.value + filteredBorrow.value - filteredPayback.value)
-
-// ── Transaction list controls ─────────────────────────────────────────────────
-const TYPE_OPTIONS = [
-  { label: t('all'),     value: 'all' },
-  { label: t('income'),  value: 'income' },
-  { label: t('expense'), value: 'expense' }
-]
-const WEEK_DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
-const pageSize = ref(5)
-
-const updatePageSize = () => {
-  pageSize.value = window.innerWidth >= 640 ? 10 : 5
-}
-
-const typeFilter     = ref('all')
-const dateFilter     = ref(null)   // 'YYYY-MM-DD' | null
-const showDatePicker = ref(false)
-const currentPage    = ref(1)
-
-// When month changes: clear date filter and go back to page 1
-watch(selectedMonth, () => {
-  dateFilter.value = null
-  showDatePicker.value = false
-  currentPage.value = 1
-})
-// When type or date filter changes: reset page only
-watch([typeFilter, dateFilter], () => { currentPage.value = 1 })
-watch(pageSize, () => { currentPage.value = 1 })
-
-onMounted(() => {
-  updatePageSize()
-  window.addEventListener('resize', updatePageSize, { passive: true })
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', updatePageSize)
-})
-
-const typeFilteredTransactions = computed(() => {
-  if (typeFilter.value === 'all') return filteredTransactions.value
-  return filteredTransactions.value.filter(t => t.type === typeFilter.value)
-})
-
-const dateFilteredTransactions = computed(() => {
-  if (!dateFilter.value) return typeFilteredTransactions.value
-  return typeFilteredTransactions.value.filter(t => t.date === dateFilter.value)
-})
-
-const totalPages = computed(() =>
-  Math.max(1, Math.ceil(dateFilteredTransactions.value.length / pageSize.value))
-)
-
-const paginatedTransactions = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value
-  return dateFilteredTransactions.value.slice(start, start + pageSize.value)
-})
-
-watch(totalPages, (tp) => {
-  if (currentPage.value > tp) currentPage.value = tp
-})
-
-// ── Calendar (date filter) — only active when a month is selected ─────────────
-const calendarDays = computed(() => {
-  if (!selectedMonth.value) return []
-  const [year, month] = selectedMonth.value.split('-').map(Number)
-  const firstDayOfWeek = new Date(year, month - 1, 1).getDay()
-  const daysInMonth = new Date(year, month, 0).getDate()
-  const cells = Array(firstDayOfWeek).fill(null)
-  for (let d = 1; d <= daysInMonth; d++) cells.push(d)
-  while (cells.length % 7 !== 0) cells.push(null)
-  return cells
-})
-
-const daysWithTransactions = computed(() => {
-  const days = new Set()
-  filteredTransactions.value.forEach(t => days.add(Number(t.date.split('-')[2])))
-  return days
-})
-
-const selectedDay = computed(() =>
-  dateFilter.value ? Number(dateFilter.value.split('-')[2]) : null
-)
-
-const dateFilterLabel = computed(() => {
-  if (!dateFilter.value) return null
-  const [, month, day] = dateFilter.value.split('-').map(Number)
-  return `${shortMonths[month - 1]} ${day}`
-})
-
-const selectDay = (day) => {
-  if (!day || !selectedMonth.value) return
-  const [year, month] = selectedMonth.value.split('-')
-  const key = `${year}-${month}-${String(day).padStart(2, '0')}`
-  dateFilter.value = dateFilter.value === key ? null : key
-}
-
-const clearDateFilter = () => { dateFilter.value = null }
-
-// ── Budget overview ───────────────────────────────────────────────────────────
+// ── Budget overview (current month only — full history lives on Activity/Budget pages) ──
 const showBudgetOverview = ref(true)
+const monthBudget = computed(() => budgets.value[monthKey] ?? null)
+const monthBudgetTotal = computed(() => monthBudget.value?.total ?? null)
+const monthCategoryBudgets = computed(() => monthBudget.value?.categories ?? {})
 
-// Full budget entry for the selected month (object or null)
-const selectedMonthBudget = computed(() =>
-  selectedMonth.value ? (budgets.value[selectedMonth.value] ?? null) : null
-)
-
-// Total budget amount (USD) — null means no budget set for this month
-const selectedMonthBudgetTotal = computed(() => selectedMonthBudget.value?.total ?? null)
-
-// Per-category spending limits for the selected month
-const selectedMonthCategoryBudgets = computed(() => selectedMonthBudget.value?.categories ?? {})
-
-// Total expense per category for the selected month (for category budget rows)
 const categoryExpenseMap = computed(() => {
   const map = {}
-  filteredTransactions.value
-    .filter(t => t.type === 'expense')
-    .forEach(t => { map[t.category] = (map[t.category] || 0) + Number(t.amount) })
+  monthTransactions.value.filter(t => t.type === 'expense').forEach(t => {
+    map[t.category] = (map[t.category] || 0) + Number(t.amount)
+  })
   return map
 })
 
-// Rows shown in the category section of the budget overview card
 const categoryBudgetRows = computed(() =>
-  Object.entries(selectedMonthCategoryBudgets.value).map(([value, limit]) => {
+  Object.entries(monthCategoryBudgets.value).map(([value, limit]) => {
     const spent = categoryExpenseMap.value[value] || 0
     const pct = Math.min(100, Math.round((spent / limit) * 100))
     const info = getCategoryInfo(value, 'expense')
@@ -252,84 +59,51 @@ const categoryBudgetRows = computed(() =>
 )
 
 const budgetPct = computed(() => {
-  if (!selectedMonthBudgetTotal.value) return 0
-  return Math.min(100, Math.round((filteredExpense.value / selectedMonthBudgetTotal.value) * 100))
+  if (!monthBudgetTotal.value) return 0
+  return Math.min(100, Math.round((monthExpense.value / monthBudgetTotal.value) * 100))
 })
 
-// Toast warning once per session when spending hits 80% of budget
-let budgetWarned = false
-watch(budgetPct, (pct) => {
-  if (pct >= 80 && !budgetWarned && selectedMonthBudgetTotal.value) {
-    budgetWarned = true
-    toast.info(`${pct}% ${t('budget_warning')}`)
-  }
-}, { immediate: false })
+// ── Recent transactions preview ───────────────────────────────────────────────
+const recentTransactions = computed(() =>
+  [...transactions.value]
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+    .slice(0, 5)
+)
 
-// ── Pagination — visible page numbers with ellipsis ──────────────────────────
-const visiblePageNumbers = computed(() => {
-  const total = totalPages.value
-  const cur   = currentPage.value
-  if (total <= 5) return Array.from({ length: total }, (_, i) => i + 1)
-  const pages = [1]
-  if (cur > 3)            pages.push('...')
-  const lo = Math.max(2, cur - 1)
-  const hi = Math.min(total - 1, cur + 1)
-  for (let p = lo; p <= hi; p++) pages.push(p)
-  if (cur < total - 2)    pages.push('...')
-  pages.push(total)
-  return pages
-})
+// ── Quick Actions ──────────────────────────────────────────────────────────────
+const showQuickModal = ref(false)
+const quickType = ref('expense') // 'expense' | 'income' | 'borrow'
 
-// ── Modal state ───────────────────────────────────────────────────────────────
-const showAddModal  = ref(false)
-const showEditModal = ref(false)
-const showViewModal = ref(false)
-const editingTransaction = ref(null)
-const viewingTransaction = ref(null)
-
-// Delete confirm dialog
-const showDeleteDialog  = ref(false)
-const deletingId        = ref(null)
-const deletingCategory  = ref('')
-
-// ── PDF Export ────────────────────────────────────────────────────────────────
-const isExporting = ref(false)
-
-const handleExportPdf = async () => {
-  if (isExporting.value) return
-  isExporting.value = true
-  try {
-    await new Promise(r => setTimeout(r, 50)) // let spinner render
-    exportToPdf({
-      transactions: dateFilteredTransactions.value,
-      monthLabel: monthLabel.value,
-      income:   filteredIncome.value,
-      expense:  filteredExpense.value,
-      balance:  filteredBalance.value,
-      formatCurrency,
-      getCategoryInfo,
-      userName: currentUser.value?.displayName || currentUser.value?.email || null,
-    })
-    toast.success('PDF exported successfully')
-  } finally {
-    isExporting.value = false
-  }
+const openQuickAction = (type) => {
+  quickType.value = type
+  showQuickModal.value = true
 }
 
-const handleAdd = async (data) => {
+const quickModalTitle = computed(() => ({
+  expense: t('add_transaction'),
+  income: t('add_transaction'),
+  borrow: t('add_borrow_payback'),
+}[quickType.value]))
+
+const handleQuickTransaction = async (data) => {
   await addTransaction(data)
-  showAddModal.value = false
+  showQuickModal.value = false
   toast.success(t('toast_transaction_added'))
 }
+
+const handleQuickBorrow = async (data) => {
+  await addTransaction(data)
+  showQuickModal.value = false
+  toast.success(t('toast_record_added'))
+}
+
+// ── Recent transaction row actions (edit/delete inline, view goes to Activity) ──
+const showEditModal = ref(false)
+const editingTransaction = ref(null)
 
 const handleEdit = (transaction) => {
   editingTransaction.value = transaction
   showEditModal.value = true
-}
-
-const handleView = (transaction) => {
-  viewingTransaction.value = transaction
-  showViewModal.value = true
 }
 
 const handleUpdate = async (data) => {
@@ -339,28 +113,13 @@ const handleUpdate = async (data) => {
   toast.success(t('toast_transaction_updated'))
 }
 
-const handleDelete = (id) => {
-  const tx = transactions.value.find(t => t.id === id)
-  deletingId.value = id
-  deletingCategory.value = tx ? getCategoryInfo(tx.category, tx.type).label : ''
-  showDeleteDialog.value = true
+const handleDelete = async (id) => {
+  if (!confirm(t('delete_confirm_desc'))) return
+  await deleteTransaction(id)
+  toast.success(t('toast_transaction_deleted'))
 }
 
-const confirmDelete = async () => {
-  if (deletingId.value) {
-    await deleteTransaction(deletingId.value)
-    toast.success(t('toast_transaction_deleted'))
-  }
-  showDeleteDialog.value = false
-  deletingId.value = null
-  deletingCategory.value = ''
-}
-
-const cancelDelete = () => {
-  showDeleteDialog.value = false
-  deletingId.value = null
-  deletingCategory.value = ''
-}
+const goToActivity = () => router.push('/activity')
 </script>
 
 <template>
@@ -371,143 +130,104 @@ const cancelDelete = () => {
       <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ t('track_income_expenses') }}</p>
     </div>
 
-    <!-- Month Filter Navigator -->
-    <div class="relative">
-      <div v-if="showMonthPicker" class="fixed inset-0 z-20" @click="closePicker"></div>
-
-      <!-- Navigator bar -->
-      <div class="flex items-center justify-between bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm px-2 py-1">
-        <button
-          class="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-          @click="prevMonth"
-        >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-
-        <!-- Label + optional clear button -->
-        <div class="flex items-center gap-1">
-          <button
-            class="flex items-center gap-1 px-3 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-            @click="openPicker"
-          >
-            <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ monthLabel }}</span>
-            <svg
-              class="w-4 h-4 text-gray-400 transition-transform duration-200"
-              :class="showMonthPicker ? 'rotate-180' : ''"
-              fill="none" stroke="currentColor" viewBox="0 0 24 24"
-            >
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+    <!-- Total Balance -->
+    <BaseCard>
+      <p class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1.5">{{ t('total_balance') }}</p>
+      <p class="text-3xl font-bold text-gray-900 dark:text-white tracking-tight mb-4">{{ formatCurrency(totalBalance) }}</p>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="flex items-center gap-2 bg-green-50 dark:bg-green-900/20 rounded-xl px-3 py-2.5">
+          <div class="w-7 h-7 rounded-full bg-green-100 dark:bg-green-900/40 flex items-center justify-center shrink-0">
+            <svg class="w-3.5 h-3.5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
             </svg>
-          </button>
-
-          <!-- × clear button — only when a month is active -->
-          <button
-            v-if="selectedMonth"
-            class="p-1 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-md transition-colors"
-            :title="t('all_transactions')"
-            @click="clearMonthFilter"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          </div>
+          <div class="min-w-0">
+            <p class="text-[11px] text-green-700 dark:text-green-400 font-medium leading-none mb-1">{{ t('income') }}</p>
+            <p class="text-sm font-bold text-green-700 dark:text-green-400 truncate">+{{ formatCurrency(monthIncome) }}</p>
+          </div>
         </div>
-
-        <button
-          class="p-2 rounded-lg transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700"
-          @click="nextMonth"
-        >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
+        <div class="flex items-center gap-2 bg-red-50 dark:bg-red-900/20 rounded-xl px-3 py-2.5">
+          <div class="w-7 h-7 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center shrink-0">
+            <svg class="w-3.5 h-3.5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 10l-7-7m0 0l-7 7m7-7v18" />
+            </svg>
+          </div>
+          <div class="min-w-0">
+            <p class="text-[11px] text-red-700 dark:text-red-400 font-medium leading-none mb-1">{{ t('expense') }}</p>
+            <p class="text-sm font-bold text-red-700 dark:text-red-400 truncate">-{{ formatCurrency(monthExpense) }}</p>
+          </div>
+        </div>
       </div>
+    </BaseCard>
 
-      <!-- Month Picker Dropdown -->
-      <Transition name="picker">
-        <div
-          v-if="showMonthPicker"
-          class="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-lg z-30 p-3"
-        >
-          <!-- Show All button -->
-          <button
-            :class="[
-              'w-full py-2 mb-3 text-sm font-medium rounded-lg transition-colors',
-              !selectedMonth
-                ? 'bg-blue-600 text-white'
-                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600'
-            ]"
-            @click="clearMonthFilter"
-          >
-            {{ t('all_transactions') }}
-          </button>
-
-          <!-- Year Navigator -->
-          <div class="flex items-center justify-between mb-3">
-            <button
-              class="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-              @click="pickerYear--"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ pickerYear }}</span>
-            <button
-              class="p-2 rounded-lg transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700"
-              @click="pickerYear++"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          </div>
-
-          <!-- Month Grid -->
-          <div class="grid grid-cols-4 gap-1">
-            <button
-              v-for="(name, i) in shortMonths"
-              :key="i"
-              :class="[
-                'py-2.5 text-sm rounded-lg font-medium transition-colors',
-                isMonthSelected(i)
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-              ]"
-              @click="selectMonth(i)"
-            >
-              {{ name }}
-            </button>
-          </div>
+    <!-- Financial Health -->
+    <div class="relative overflow-hidden bg-gradient-to-br from-primary-800 to-primary-950 rounded-2xl p-4 shadow-lg shadow-primary-900/20">
+      <div class="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -translate-y-1/3 translate-x-1/3 pointer-events-none"></div>
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-sm font-semibold text-white">{{ t('financial_health') }}</span>
+        <div class="w-7 h-7 bg-white/10 rounded-lg flex items-center justify-center">
+          <svg class="w-4 h-4 text-primary-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          </svg>
         </div>
-      </Transition>
+      </div>
+      <p class="text-3xl font-bold text-white mb-2">{{ healthScore }}<span class="text-base font-medium text-primary-200">/100</span></p>
+      <p class="text-xs text-primary-100 leading-relaxed">{{ healthDescription }}</p>
     </div>
 
-    <!-- Summary Cards -->
-    <SummaryCards
-      :total-income="filteredIncome"
-      :total-expense="filteredExpense"
-      :total-balance="filteredBalance"
-    />
+    <!-- Quick Actions -->
+    <div>
+      <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2 px-0.5">{{ t('quick_actions') }}</h3>
+      <div class="grid grid-cols-3 gap-3">
+        <button
+          class="flex flex-col items-center gap-2 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl py-3.5 shadow-sm hover:shadow-md transition-shadow"
+          @click="openQuickAction('expense')"
+        >
+          <div class="w-9 h-9 bg-red-50 dark:bg-red-900/20 rounded-xl flex items-center justify-center">
+            <svg class="w-4.5 h-4.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
+            </svg>
+          </div>
+          <span class="text-xs font-medium text-gray-700 dark:text-gray-300">{{ t('expense') }}</span>
+        </button>
+        <button
+          class="flex flex-col items-center gap-2 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl py-3.5 shadow-sm hover:shadow-md transition-shadow"
+          @click="openQuickAction('income')"
+        >
+          <div class="w-9 h-9 bg-green-50 dark:bg-green-900/20 rounded-xl flex items-center justify-center">
+            <svg class="w-4.5 h-4.5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+          </div>
+          <span class="text-xs font-medium text-gray-700 dark:text-gray-300">{{ t('income') }}</span>
+        </button>
+        <button
+          class="flex flex-col items-center gap-2 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl py-3.5 shadow-sm hover:shadow-md transition-shadow"
+          @click="openQuickAction('borrow')"
+        >
+          <div class="w-9 h-9 bg-tertiary-50 dark:bg-tertiary-900/20 rounded-xl flex items-center justify-center">
+            <svg class="w-4.5 h-4.5 text-tertiary-600 dark:text-tertiary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+            </svg>
+          </div>
+          <span class="text-xs font-medium text-gray-700 dark:text-gray-300">{{ t('nav.borrow') }}</span>
+        </button>
+      </div>
+    </div>
 
-    <!-- ── Budget Overview ──────────────────────────────────────────────────── -->
-    <BaseCard v-if="selectedMonthBudgetTotal !== null" padding="p-0">
+    <!-- Budget Overview -->
+    <BaseCard v-if="monthBudgetTotal !== null" padding="p-0">
       <button
         class="w-full flex items-center justify-between px-4 py-3 text-left"
         @click="showBudgetOverview = !showBudgetOverview"
       >
         <div class="flex items-center gap-2">
-          <div class="w-8 h-8 bg-purple-100 dark:bg-purple-900/40 rounded-xl flex items-center justify-center">
-            <svg class="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="w-8 h-8 bg-tertiary-100 dark:bg-tertiary-900/40 rounded-xl flex items-center justify-center">
+            <svg class="w-4 h-4 text-tertiary-600 dark:text-tertiary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
           </div>
           <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('budget_overview') }}</span>
-          <span class="text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full">
-            {{ monthLabel }}
-          </span>
         </div>
         <svg
           class="w-4 h-4 text-gray-400 transition-transform duration-200"
@@ -519,14 +239,12 @@ const cancelDelete = () => {
       </button>
 
       <div v-if="showBudgetOverview" class="px-4 pb-4 border-t border-gray-100 dark:border-gray-700 pt-3 space-y-3">
-
-        <!-- Total spending vs total budget -->
         <div>
           <div class="flex items-center justify-between mb-1.5">
             <span class="text-sm font-medium text-gray-700 dark:text-gray-200">{{ t('total_spending') }}</span>
             <div class="text-right">
               <span class="text-xs font-semibold" :class="budgetPct >= 100 ? 'text-red-500' : budgetPct >= 80 ? 'text-amber-500' : 'text-gray-500 dark:text-gray-400'">
-                {{ formatCurrency(filteredExpense) }} / {{ formatCurrency(selectedMonthBudgetTotal) }}
+                {{ formatCurrency(monthExpense) }} / {{ formatCurrency(monthBudgetTotal) }}
               </span>
               <span class="text-xs ml-1.5 font-bold" :class="budgetPct >= 100 ? 'text-red-500' : budgetPct >= 80 ? 'text-amber-500' : 'text-green-600'">
                 {{ budgetPct }}%
@@ -541,14 +259,13 @@ const cancelDelete = () => {
             />
           </div>
           <p v-if="budgetPct < 100" class="text-xs text-gray-400 dark:text-gray-500 mt-1">
-            {{ formatCurrency(selectedMonthBudgetTotal - filteredExpense) }} remaining
+            {{ formatCurrency(monthBudgetTotal - monthExpense) }} remaining
           </p>
           <p v-else class="text-xs text-red-500 mt-1 font-medium">
-            Over budget by {{ formatCurrency(filteredExpense - selectedMonthBudgetTotal) }}
+            Over budget by {{ formatCurrency(monthExpense - monthBudgetTotal) }}
           </p>
         </div>
 
-        <!-- Per-category budget rows (only shown when limits are set) -->
         <div v-if="categoryBudgetRows.length > 0" class="space-y-2 pt-1 border-t border-gray-100 dark:border-gray-700">
           <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{{ t('category_limits') }}</p>
           <div v-for="row in categoryBudgetRows" :key="row.value" class="space-y-1">
@@ -566,201 +283,54 @@ const cancelDelete = () => {
             <div class="h-1.5 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">
               <div
                 class="h-full rounded-full transition-all duration-500"
-                :class="row.pct >= 100 ? 'bg-red-500' : row.pct >= 80 ? 'bg-amber-400' : 'bg-blue-500'"
+                :class="row.pct >= 100 ? 'bg-red-500' : row.pct >= 80 ? 'bg-amber-400' : 'bg-primary-500'"
                 :style="{ width: row.pct + '%' }"
               />
             </div>
           </div>
         </div>
-
       </div>
     </BaseCard>
 
-    <!-- Transactions List -->
+    <!-- Recent Transactions -->
     <BaseCard>
-      <!-- Header -->
       <div class="flex items-center justify-between mb-3">
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('transactions') }}</h2>
-        <div class="flex items-center gap-2">
-          <span class="text-sm text-gray-500 dark:text-gray-400">{{ dateFilteredTransactions.length }} total</span>
-          <!-- PDF Export button -->
-          <button
-            :disabled="isExporting || dateFilteredTransactions.length === 0"
-            class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
-            :class="isExporting
-              ? 'bg-red-50 dark:bg-red-900/20 text-red-500'
-              : 'bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400'"
-            :title="'Export ' + monthLabel + ' as PDF'"
-            @click="handleExportPdf"
-          >
-            <svg v-if="!isExporting" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <svg v-else class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-            </svg>
-            <span class="hidden sm:inline">{{ isExporting ? 'Exporting...' : 'PDF' }}</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Filter row: type pills + date toggle (calendar hidden when no month selected) -->
-      <div class="flex items-center gap-2 mb-3">
-        <div class="flex-1 grid grid-cols-3 gap-1 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
-          <button
-            v-for="opt in TYPE_OPTIONS"
-            :key="opt.value"
-            :class="[
-              'py-1.5 text-sm font-medium rounded-md transition-colors',
-              typeFilter === opt.value
-                ? opt.value === 'income'
-                  ? 'bg-white dark:bg-gray-600 text-green-600 shadow-sm'
-                  : opt.value === 'expense'
-                    ? 'bg-white dark:bg-gray-600 text-red-600 shadow-sm'
-                    : 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
-                : 'text-gray-500 dark:text-gray-400'
-            ]"
-            @click="typeFilter = opt.value"
-          >{{ opt.label }}</button>
-        </div>
-
-        <!-- Calendar toggle — only when a specific month is active -->
-        <button
-          v-if="selectedMonth"
-          :class="[
-            'shrink-0 w-10 h-10 flex items-center justify-center rounded-xl border transition-colors',
-            showDatePicker || dateFilter
-              ? 'bg-blue-600 border-blue-600 text-white'
-              : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
-          ]"
-          @click="showDatePicker = !showDatePicker"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('recent_transactions') }}</h2>
+        <button class="text-sm font-medium text-primary-600 dark:text-primary-400 hover:underline" @click="goToActivity">
+          {{ t('view_all') }}
         </button>
       </div>
 
-      <!-- Active date chip -->
-      <div v-if="dateFilter" class="flex items-center gap-2 mb-3">
-        <span class="inline-flex items-center gap-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-sm font-medium px-3 py-1 rounded-full">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-          {{ dateFilterLabel }}
-          <button class="ml-0.5 hover:text-blue-900 dark:hover:text-blue-100" @click="clearDateFilter">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </span>
-      </div>
-
-      <!-- Inline Calendar (only when month selected) -->
-      <Transition name="picker">
-        <div v-if="showDatePicker && selectedMonth" class="mb-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3">
-          <div class="grid grid-cols-7 mb-1">
-            <span
-              v-for="d in WEEK_DAYS" :key="d"
-              class="text-xs text-center text-gray-400 font-medium py-1"
-            >{{ d }}</span>
-          </div>
-          <div class="grid grid-cols-7 gap-y-1">
-            <div
-              v-for="(day, i) in calendarDays"
-              :key="i"
-              class="flex flex-col items-center"
-            >
-              <button
-                v-if="day"
-                :class="[
-                  'w-8 h-8 flex items-center justify-center text-sm rounded-full transition-colors font-medium',
-                  selectedDay === day
-                    ? 'bg-blue-600 text-white'
-                    : daysWithTransactions.has(day)
-                      ? 'text-gray-900 dark:text-white hover:bg-blue-50 dark:hover:bg-blue-900/30'
-                      : 'text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'
-                ]"
-                @click="selectDay(day)"
-              >{{ day }}</button>
-              <span v-else class="w-8 h-8"></span>
-
-              <span
-                v-if="day && daysWithTransactions.has(day)"
-                :class="['w-1 h-1 rounded-full mt-0.5', selectedDay === day ? 'bg-white/70' : 'bg-blue-400']"
-              ></span>
-              <span v-else-if="day" class="w-1 h-1 mt-0.5"></span>
-            </div>
-          </div>
-        </div>
-      </Transition>
-
-      <!-- Transaction List -->
-      <TransactionList
-        :transactions="paginatedTransactions"
-        @view="handleView"
-        @edit="handleEdit"
-        @delete="handleDelete"
-      />
-
-      <!-- Pagination -->
-      <div v-if="totalPages > 1" class="flex items-center justify-center gap-1.5 pt-4 mt-4 border-t border-gray-100 dark:border-gray-700">
-        <button
-          :disabled="currentPage === 1"
-          :class="[
-            'w-10 h-10 flex items-center justify-center rounded-xl border text-sm font-medium transition-colors',
-            currentPage === 1
-              ? 'border-gray-100 dark:border-gray-700 text-gray-300 dark:text-gray-600 cursor-not-allowed bg-white dark:bg-gray-800'
-              : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm'
-          ]"
-          @click="currentPage--"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-
-        <template v-for="p in visiblePageNumbers" :key="p">
-          <span
-            v-if="p === '...'"
-            class="w-10 h-10 flex items-center justify-center text-sm text-gray-400"
-          >…</span>
-          <button
-            v-else
-            :class="[
-              'w-10 h-10 flex items-center justify-center rounded-xl border text-sm font-medium transition-colors',
-              p === currentPage
-                ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
-                : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm'
-            ]"
-            @click="currentPage = p"
-          >{{ p }}</button>
-        </template>
-
-        <button
-          :disabled="currentPage === totalPages"
-          :class="[
-            'w-10 h-10 flex items-center justify-center rounded-xl border text-sm font-medium transition-colors',
-            currentPage === totalPages
-              ? 'border-gray-100 dark:border-gray-700 text-gray-300 dark:text-gray-600 cursor-not-allowed bg-white dark:bg-gray-800'
-              : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm'
-          ]"
-          @click="currentPage++"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
+      <EmptyState v-if="recentTransactions.length === 0" :title="t('no_transactions_title')" icon="folder" />
+      <div v-else class="divide-y divide-gray-100 dark:divide-gray-700">
+        <TransactionItem
+          v-for="tx in recentTransactions"
+          :key="tx.id"
+          :transaction="tx"
+          @view="goToActivity"
+          @edit="handleEdit"
+          @delete="handleDelete"
+        />
       </div>
     </BaseCard>
 
-    <!-- Add Transaction Modal -->
-    <BaseModal :show="showAddModal" :title="t('add_transaction')" @close="showAddModal = false">
-      <TransactionForm @submit="handleAdd" @cancel="showAddModal = false" />
+    <!-- Quick Action Modal -->
+    <BaseModal :show="showQuickModal" :title="quickModalTitle" @close="showQuickModal = false">
+      <TransactionForm
+        v-if="quickType === 'expense' || quickType === 'income'"
+        :initial-data="{ type: quickType }"
+        @submit="handleQuickTransaction"
+        @cancel="showQuickModal = false"
+      />
+      <BorrowForm
+        v-else
+        :initial-data="{ type: 'borrow' }"
+        @submit="handleQuickBorrow"
+        @cancel="showQuickModal = false"
+      />
     </BaseModal>
 
-    <!-- Edit Transaction Modal -->
+    <!-- Edit Transaction Modal (from Recent Transactions) -->
     <BaseModal :show="showEditModal" :title="t('edit_transaction')" @close="showEditModal = false">
       <TransactionForm
         v-if="editingTransaction"
@@ -770,126 +340,5 @@ const cancelDelete = () => {
         @cancel="showEditModal = false"
       />
     </BaseModal>
-
-    <!-- View Transaction Modal -->
-    <BaseModal :show="showViewModal" :title="t('transaction_details')" @close="showViewModal = false">
-      <div v-if="viewingTransaction" class="space-y-3">
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div class="p-3 rounded-xl bg-gray-50 dark:bg-gray-700/40">
-            <div class="text-xs text-gray-500 dark:text-gray-400">{{ t('category') }}</div>
-            <div class="font-medium text-gray-900 dark:text-white truncate">
-              {{ getCategoryInfo(viewingTransaction.category, viewingTransaction.type).label }}
-            </div>
-          </div>
-          <div class="p-3 rounded-xl bg-gray-50 dark:bg-gray-700/40">
-            <div class="text-xs text-gray-500 dark:text-gray-400">{{ t('amount') }}</div>
-            <div :class="[
-              'font-semibold',
-              viewingTransaction.type === 'income' ? 'text-green-600' : 'text-red-600'
-            ]">
-              {{ viewingTransaction.type === 'income' ? '+' : '-' }}{{ formatCurrency(viewingTransaction.amount) }}
-            </div>
-          </div>
-          <div class="p-3 rounded-xl bg-gray-50 dark:bg-gray-700/40">
-            <div class="text-xs text-gray-500 dark:text-gray-400">{{ t('date') }}</div>
-            <div class="font-medium text-gray-900 dark:text-white">
-              {{ formatDate(viewingTransaction.date) }}
-            </div>
-          </div>
-        </div>
-
-        <div v-if="viewingTransaction.description" class="p-3 rounded-xl bg-gray-50 dark:bg-gray-700/40">
-          <div class="text-xs text-gray-500 dark:text-gray-400">{{ t('description') }}</div>
-          <div class="text-gray-900 dark:text-white whitespace-pre-wrap">{{ viewingTransaction.description }}</div>
-        </div>
-
-        <div class="pt-1">
-          <BaseButton variant="secondary" full-width @click="showViewModal = false">{{ t('cancel') }}</BaseButton>
-        </div>
-      </div>
-    </BaseModal>
-
-    <!-- Mobile FAB -->
-    <MobileFAB @click="showAddModal = true" />
-
-    <!-- ── Delete Confirmation Dialog ──────────────────────────────────────── -->
-    <Teleport to="body">
-      <Transition
-        enter-active-class="transition duration-200 ease-out"
-        enter-from-class="opacity-0"
-        enter-to-class="opacity-100"
-        leave-active-class="transition duration-150 ease-in"
-        leave-from-class="opacity-100"
-        leave-to-class="opacity-0"
-      >
-        <div
-          v-if="showDeleteDialog"
-          class="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
-          @click.self="cancelDelete"
-        >
-          <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-          <Transition
-            enter-active-class="transition duration-200 ease-out"
-            enter-from-class="translate-y-4 opacity-0 sm:scale-95"
-            enter-to-class="translate-y-0 opacity-100 sm:scale-100"
-            leave-active-class="transition duration-150 ease-in"
-            leave-from-class="translate-y-0 opacity-100 sm:scale-100"
-            leave-to-class="translate-y-4 opacity-0 sm:scale-95"
-          >
-            <div
-              v-if="showDeleteDialog"
-              class="relative w-full sm:max-w-sm mx-auto bg-white dark:bg-gray-800 rounded-t-3xl sm:rounded-2xl shadow-2xl px-6 pt-6 pb-8 sm:pb-6"
-            >
-              <div class="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto mb-5 sm:hidden" />
-              <div class="flex items-center justify-center mb-4">
-                <div class="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center">
-                  <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </div>
-              </div>
-              <h3 class="text-lg font-bold text-center text-gray-900 dark:text-white mb-1">
-                {{ t('delete_confirm_title') }}
-              </h3>
-              <p class="text-sm text-center text-gray-500 dark:text-gray-400 mb-6">
-                <template v-if="deletingCategory">
-                  {{ t('delete_confirm_name', { name: deletingCategory }) }}
-                </template>
-                <template v-else>
-                  {{ t('delete_confirm_desc') }}
-                </template>
-              </p>
-              <div class="flex flex-col-reverse sm:flex-row gap-3">
-                <button
-                  class="flex-1 py-3 rounded-xl border border-gray-200 dark:border-gray-600 text-sm font-semibold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-                  @click="cancelDelete"
-                >
-                  {{ t('cancel') }}
-                </button>
-                <button
-                  class="flex-1 py-3 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 active:bg-red-700 transition-colors shadow-sm"
-                  @click="confirmDelete"
-                >
-                  {{ t('delete') }}
-                </button>
-              </div>
-            </div>
-          </Transition>
-        </div>
-      </Transition>
-    </Teleport>
   </div>
 </template>
-
-<style scoped>
-.picker-enter-active,
-.picker-leave-active {
-  transition: opacity 0.15s ease, transform 0.15s ease;
-}
-.picker-enter-from,
-.picker-leave-to {
-  opacity: 0;
-  transform: translateY(-6px);
-}
-</style>

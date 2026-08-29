@@ -22,8 +22,8 @@ const colorFor = (type) => ({
   },
   info: {
     bg:   'bg-white dark:bg-gray-800',
-    icon: 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400',
-    bar:  'bg-blue-500'
+    icon: 'bg-primary-100 dark:bg-primary-900/40 text-primary-600 dark:text-primary-400',
+    bar:  'bg-primary-500'
   }
 })[type] || {}
 </script>

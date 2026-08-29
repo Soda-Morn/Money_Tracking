@@ -26,7 +26,7 @@ watch(locale, () => {
 
 <template>
   <!-- Auth state loading splash -->
-  <div v-if="authLoading" class="min-h-screen bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 flex items-center justify-center">
+  <div v-if="authLoading" class="min-h-screen bg-gradient-to-br from-primary-700 via-primary-600 to-secondary-700 flex items-center justify-center">
     <div class="flex flex-col items-center gap-4">
       <div class="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-3xl flex items-center justify-center shadow-xl mb-2">
         <svg class="w-9 h-9 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">

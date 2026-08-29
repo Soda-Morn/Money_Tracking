@@ -23,8 +23,15 @@ const form = ref({
   targetAmount: props.initialData.targetAmount || '',
   currentAmount: props.initialData.currentAmount || 0,
   deadline: props.initialData.deadline || '',
-  icon: props.initialData.icon || '🎯'
+  icon: props.initialData.icon || '🎯',
+  priority: props.initialData.priority || 'medium'
 })
+
+const priorityOptions = [
+  { value: 'low',    label: 'priority_low' },
+  { value: 'medium', label: 'priority_medium' },
+  { value: 'high',   label: 'priority_high' },
+]
 
 // Expanded icon set — 40 options
 const icons = [
@@ -63,7 +70,7 @@ const handleSubmit = () => {
           :class="[
             'w-10 h-10 rounded-lg text-xl transition-colors flex items-center justify-center',
             form.icon === icon
-              ? 'bg-blue-100 dark:bg-blue-900/50 ring-2 ring-blue-500'
+              ? 'bg-primary-100 dark:bg-primary-900/50 ring-2 ring-primary-500'
               : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600'
           ]"
           @click="form.icon = icon"
@@ -78,7 +85,7 @@ const handleSubmit = () => {
         <input
           v-model="form.icon"
           maxlength="2"
-          class="w-14 h-10 text-center text-2xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          class="w-14 h-10 text-center text-2xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
           placeholder="😀"
         />
       </div>
@@ -91,6 +98,25 @@ const handleSubmit = () => {
       placeholder="e.g., New Car, Vacation, Emergency Fund"
       :required="true"
     />
+
+    <!-- Priority -->
+    <div class="space-y-1.5">
+      <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('priority') }}</label>
+      <div class="grid grid-cols-3 gap-2 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
+        <button
+          v-for="opt in priorityOptions"
+          :key="opt.value"
+          type="button"
+          :class="[
+            'py-1.5 text-sm font-medium rounded-md transition-colors',
+            form.priority === opt.value
+              ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
+              : 'text-gray-500 dark:text-gray-400'
+          ]"
+          @click="form.priority = opt.value"
+        >{{ t(opt.label) }}</button>
+      </div>
+    </div>
 
     <!-- Target Amount -->
     <BaseInput

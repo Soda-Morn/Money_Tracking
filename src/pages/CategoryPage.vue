@@ -104,7 +104,7 @@ const handleDelete = async (id) => {
 
         <!-- Add button -->
         <button
-          class="flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shrink-0"
+          class="flex items-center gap-1.5 px-3 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition-colors shrink-0"
           @click="openAddModal"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -212,7 +212,7 @@ const handleDelete = async (id) => {
               :class="[
                 'w-9 h-9 rounded-lg text-xl flex items-center justify-center transition-colors',
                 addForm.icon === emoji
-                  ? 'bg-blue-100 dark:bg-blue-900/60 ring-2 ring-blue-500'
+                  ? 'bg-primary-100 dark:bg-primary-900/60 ring-2 ring-primary-500'
                   : 'hover:bg-gray-200 dark:hover:bg-gray-600'
               ]"
               @click="addForm.icon = emoji"
@@ -225,7 +225,7 @@ const handleDelete = async (id) => {
             <input
               v-model="addForm.icon"
               maxlength="2"
-              class="w-14 h-10 text-center text-2xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="w-14 h-10 text-center text-2xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
               placeholder="😀"
             />
           </div>

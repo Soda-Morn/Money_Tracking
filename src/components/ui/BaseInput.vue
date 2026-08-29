@@ -45,7 +45,7 @@ const handleInput = (event) => {
       :placeholder="placeholder"
       :required="required"
       :class="[
-        'w-full px-3.5 py-2.5 border rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 text-sm',
+        'w-full px-3.5 py-2.5 border rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 text-sm',
         error
           ? 'border-red-400 dark:border-red-500 focus:ring-red-400/50 focus:border-red-400'
           : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'

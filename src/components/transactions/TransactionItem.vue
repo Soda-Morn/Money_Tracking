@@ -55,9 +55,9 @@ onBeforeUnmount(() => {
       transaction.type === 'income'
         ? 'bg-emerald-100 dark:bg-emerald-900/30'
         : transaction.type === 'borrow'
-          ? 'bg-blue-100 dark:bg-blue-900/30'
+          ? 'bg-primary-100 dark:bg-primary-900/30'
           : transaction.type === 'payback'
-            ? 'bg-purple-100 dark:bg-purple-900/30'
+            ? 'bg-tertiary-100 dark:bg-tertiary-900/30'
             : 'bg-red-100 dark:bg-red-900/30'
     ]">
       {{ categoryInfo.icon }}
@@ -78,8 +78,8 @@ onBeforeUnmount(() => {
       <span :class="[
         'font-bold text-sm tabular-nums',
         transaction.type === 'income'  ? 'text-emerald-600 dark:text-emerald-400' :
-        transaction.type === 'borrow'  ? 'text-blue-600 dark:text-blue-400' :
-        transaction.type === 'payback' ? 'text-purple-600 dark:text-purple-400' :
+        transaction.type === 'borrow'  ? 'text-primary-600 dark:text-primary-400' :
+        transaction.type === 'payback' ? 'text-tertiary-600 dark:text-tertiary-400' :
                                           'text-red-500 dark:text-red-400'
       ]">
         {{ transaction.type === 'income' ? '+' : '-' }}{{ formatCurrency(transaction.amount) }}
@@ -126,7 +126,7 @@ onBeforeUnmount(() => {
               role="menuitem"
               @click="closeMenu(); emit('edit', transaction)"
             >
-              <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <svg class="w-4 h-4 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
               {{ t('edit_transaction') }}

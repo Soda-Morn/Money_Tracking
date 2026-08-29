@@ -86,9 +86,9 @@ const handleAddMoneySubmit = (amount) => {
     <!-- Summary Cards -->
     <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
       <!-- Total Saved — gradient hero -->
-      <div class="relative overflow-hidden col-span-2 sm:col-span-1 bg-gradient-to-br from-blue-600 via-blue-600 to-indigo-700 rounded-2xl p-4 shadow-lg shadow-blue-500/25">
+      <div class="relative overflow-hidden col-span-2 sm:col-span-1 bg-gradient-to-br from-primary-600 via-primary-600 to-secondary-700 rounded-2xl p-4 shadow-lg shadow-primary-500/25">
         <div class="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -translate-y-1/3 translate-x-1/3 pointer-events-none"></div>
-        <p class="text-xs font-semibold text-blue-200 uppercase tracking-wider mb-1.5">{{ t('total_saved') }}</p>
+        <p class="text-xs font-semibold text-primary-200 uppercase tracking-wider mb-1.5">{{ t('total_saved') }}</p>
         <p class="text-xl font-bold text-white tracking-tight">{{ formatCurrency(totalSaved) }}</p>
       </div>
       <!-- Total Target -->
@@ -107,11 +107,11 @@ const handleAddMoneySubmit = (amount) => {
     <BaseCard v-if="goals.length > 0">
       <div class="flex justify-between items-center mb-3">
         <h3 class="font-semibold text-gray-900 dark:text-white">{{ t('overall_progress') }}</h3>
-        <span class="text-sm font-bold text-blue-600 dark:text-blue-400">{{ Math.round(overallProgress) }}%</span>
+        <span class="text-sm font-bold text-primary-600 dark:text-primary-400">{{ Math.round(overallProgress) }}%</span>
       </div>
       <div class="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-2.5 overflow-hidden">
         <div
-          class="bg-gradient-to-r from-blue-500 to-indigo-600 h-2.5 rounded-full transition-all duration-700 ease-out shadow-sm shadow-blue-400/30"
+          class="bg-gradient-to-r from-primary-500 to-secondary-600 h-2.5 rounded-full transition-all duration-700 ease-out shadow-sm shadow-primary-400/30"
           :style="{ width: `${Math.min(100, overallProgress)}%` }"
         ></div>
       </div>

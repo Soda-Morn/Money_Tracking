@@ -64,8 +64,8 @@ const createChart = () => {
         {
           label: 'Income',
           data: chartData.value.incomeData,
-          borderColor: '#22C55E',
-          backgroundColor: 'rgba(34, 197, 94, 0.1)',
+          borderColor: '#0d4d40',
+          backgroundColor: 'rgba(13, 77, 64, 0.1)',
           fill: true,
           tension: 0.4,
           pointRadius: 4,
@@ -74,8 +74,8 @@ const createChart = () => {
         {
           label: 'Expense',
           data: chartData.value.expenseData,
-          borderColor: '#EF4444',
-          backgroundColor: 'rgba(239, 68, 68, 0.1)',
+          borderColor: '#663a21',
+          backgroundColor: 'rgba(102, 58, 33, 0.1)',
           fill: true,
           tension: 0.4,
           pointRadius: 4,

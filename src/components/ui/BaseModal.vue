@@ -45,8 +45,13 @@ const close = () => {
           </div>
 
           <!-- Body -->
-          <div class="p-5 modal-body-safe">
+          <div class="p-5" :class="{ 'modal-body-safe': !$slots.footer }">
             <slot></slot>
+          </div>
+
+          <!-- Optional footer action bar -->
+          <div v-if="$slots.footer" class="px-5 py-4 border-t border-gray-100 dark:border-gray-800 modal-body-safe">
+            <slot name="footer"></slot>
           </div>
         </div>
       </div>

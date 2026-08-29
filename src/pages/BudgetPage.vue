@@ -104,7 +104,7 @@ const handleRemove = async (monthKey) => {
       <input
         v-model="selectedMonth"
         type="month"
-        class="w-full px-3 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+        class="w-full px-3 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
       />
     </BaseCard>
 
@@ -126,7 +126,7 @@ const handleRemove = async (monthKey) => {
             <span class="text-xl leading-none">{{ row.icon }}</span>
             <div>
               <p class="text-sm font-medium text-gray-900 dark:text-white">{{ row.label }}</p>
-              <p class="text-xs text-blue-600 dark:text-blue-400 font-medium mt-0.5">
+              <p class="text-xs text-primary-600 dark:text-primary-400 font-medium mt-0.5">
                 {{ formatCurrency(row.limit) }} / {{ t('month') }}
               </p>
             </div>
@@ -155,7 +155,7 @@ const handleRemove = async (monthKey) => {
         <div v-if="availableCategories.length > 0" class="flex gap-2">
           <select
             v-model="newCategoryValue"
-            class="flex-1 px-3 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="flex-1 px-3 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             <option value="">{{ t('select_category') }}</option>
             <option v-for="cat in availableCategories" :key="cat.value" :value="cat.value">
@@ -168,7 +168,7 @@ const handleRemove = async (monthKey) => {
             min="0"
             step="any"
             :placeholder="currency === 'KHR' ? '0 ៛' : '0.00'"
-            class="w-28 px-3 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="w-28 px-3 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
             @keyup.enter="handleAddCategoryLimit"
           />
           <button
@@ -199,7 +199,7 @@ const handleRemove = async (monthKey) => {
         >
           <div>
             <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ item.label }}</p>
-            <p class="text-xs text-blue-600 dark:text-blue-400 font-medium mt-0.5">
+            <p class="text-xs text-primary-600 dark:text-primary-400 font-medium mt-0.5">
               {{ item.catCount }} {{ t('category_limits_count') }}
             </p>
           </div>
@@ -219,7 +219,7 @@ const handleRemove = async (monthKey) => {
     <!-- Empty state -->
     <BaseCard v-else>
       <div class="flex flex-col items-center justify-center py-8 text-center">
-        <div class="w-14 h-14 bg-purple-50 dark:bg-purple-900/30 rounded-2xl flex items-center justify-center text-3xl mb-3">
+        <div class="w-14 h-14 bg-tertiary-50 dark:bg-tertiary-900/30 rounded-2xl flex items-center justify-center text-3xl mb-3">
           💸
         </div>
         <p class="text-sm font-semibold text-gray-900 dark:text-white mb-1">{{ t('no_budgets_title') }}</p>

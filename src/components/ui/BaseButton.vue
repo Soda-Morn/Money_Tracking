@@ -23,7 +23,7 @@ defineProps({
 const emit = defineEmits(['click'])
 
 const variantClasses = {
-  primary:   'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-md shadow-blue-500/20 hover:shadow-lg hover:shadow-blue-500/30 focus:ring-blue-500 active:scale-[0.98]',
+  primary:   'bg-gradient-to-r from-primary-600 to-secondary-600 text-white hover:from-primary-700 hover:to-secondary-700 shadow-md shadow-primary-500/20 hover:shadow-lg hover:shadow-primary-500/30 focus:ring-primary-500 active:scale-[0.98]',
   secondary: 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 focus:ring-gray-400 active:scale-[0.98]',
   danger:    'bg-gradient-to-r from-red-500 to-rose-600 text-white hover:from-red-600 hover:to-rose-700 shadow-md shadow-red-500/20 focus:ring-red-500 active:scale-[0.98]',
   ghost:     'bg-transparent text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 focus:ring-gray-400 active:scale-[0.98]',

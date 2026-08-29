@@ -19,7 +19,9 @@ defineProps({
 })
 
 const colorClasses = {
-  blue: 'bg-blue-600',
+  blue: 'bg-primary-600',
+  teal: 'bg-primary-600',
+  brown: 'bg-tertiary-600',
   green: 'bg-green-600',
   red: 'bg-red-600',
   yellow: 'bg-yellow-500'

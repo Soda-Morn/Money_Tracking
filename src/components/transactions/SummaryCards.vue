@@ -25,14 +25,14 @@ const { t } = useI18n()
   <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
 
     <!-- Total Balance — full-width on mobile, gradient hero card -->
-    <div class="col-span-2 sm:col-span-1 relative overflow-hidden bg-gradient-to-br from-blue-600 via-blue-600 to-indigo-700 rounded-2xl p-5 shadow-lg shadow-blue-500/25">
+    <div class="col-span-2 sm:col-span-1 relative overflow-hidden bg-gradient-to-br from-primary-600 via-primary-600 to-secondary-700 rounded-2xl p-5 shadow-lg shadow-primary-500/25">
       <!-- Decorative blobs -->
       <div class="absolute top-0 right-0 w-28 h-28 bg-white/10 rounded-full -translate-y-1/3 translate-x-1/3 pointer-events-none"></div>
       <div class="absolute bottom-0 left-0 w-20 h-20 bg-black/10 rounded-full translate-y-1/3 -translate-x-1/3 pointer-events-none"></div>
 
       <div class="relative flex items-center justify-between">
         <div>
-          <p class="text-xs font-semibold text-blue-200 uppercase tracking-wider mb-1.5">{{ t('total_balance') }}</p>
+          <p class="text-xs font-semibold text-primary-200 uppercase tracking-wider mb-1.5">{{ t('total_balance') }}</p>
           <p :class="['text-2xl font-bold tracking-tight', totalBalance < 0 ? 'text-red-300' : 'text-white']">
             {{ formatCurrency(totalBalance) }}
           </p>

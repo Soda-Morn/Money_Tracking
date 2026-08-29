@@ -63,13 +63,13 @@ const createChart = () => {
         {
           label: 'Income',
           data: chartData.value.incomeData,
-          backgroundColor: '#22C55E',
+          backgroundColor: '#0d4d40',
           borderRadius: 6
         },
         {
           label: 'Expense',
           data: chartData.value.expenseData,
-          backgroundColor: '#EF4444',
+          backgroundColor: '#663a21',
           borderRadius: 6
         }
       ]

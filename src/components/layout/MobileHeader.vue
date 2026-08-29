@@ -12,6 +12,7 @@ const { t } = useI18n()
 const showMenu = ref(false)
 
 const pageTitle = computed(() => {
+  if (route.path.startsWith('/loans/')) return t('loan_details_title')
   const titles = {
     '/':                  t('pages.dashboard'),
     '/activity':          t('pages.activity'),
@@ -20,7 +21,7 @@ const pageTitle = computed(() => {
     '/settings':          t('pages.settings'),
     '/settings/categories': t('pages.categories'),
     '/settings/budget':     t('pages.budget'),
-    '/borrow':            t('pages.borrow'),
+    '/loans':             t('pages.borrow'),
   }
   return titles[route.path] || 'FinanceFlow'
 })

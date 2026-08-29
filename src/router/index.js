@@ -31,9 +31,18 @@ const routes = [
     component: () => import('../pages/AnalyticsPage.vue')
   },
   {
+    path: '/loans',
+    name: 'Loans',
+    component: () => import('../pages/LoansPage.vue')
+  },
+  {
+    path: '/loans/:id',
+    name: 'LoanDetail',
+    component: () => import('../pages/LoanDetailPage.vue')
+  },
+  {
     path: '/borrow',
-    name: 'Borrow',
-    component: () => import('../pages/BorrowPage.vue')
+    redirect: '/loans'
   },
   {
     path: '/settings',

@@ -1,15 +1,15 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useTransactions } from '../composables/useTransactions'
-import { useFormat } from '../composables/useFormat'
-import BaseCard from '../components/ui/BaseCard.vue'
-import BaseModal from '../components/ui/BaseModal.vue'
-import BorrowForm from '../components/transactions/BorrowForm.vue'
-import PersonLedgerModal from '../components/transactions/PersonLedgerModal.vue'
-import EmptyState from '../components/ui/EmptyState.vue'
-import MobileFAB from '../components/ui/MobileFAB.vue'
-import { useToast } from '../composables/useToast'
+import { useTransactions } from '../../composables/useTransactions'
+import { useFormat } from '../../composables/useFormat'
+import BaseCard from '../ui/BaseCard.vue'
+import BaseModal from '../ui/BaseModal.vue'
+import BorrowForm from '../transactions/BorrowForm.vue'
+import PersonLedgerModal from '../transactions/PersonLedgerModal.vue'
+import EmptyState from '../ui/EmptyState.vue'
+import MobileFAB from '../ui/MobileFAB.vue'
+import { useToast } from '../../composables/useToast'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -148,12 +148,6 @@ const cancelDelete = () => {
 
 <template>
   <div class="space-y-6">
-    <!-- Page Header -->
-    <div>
-      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ t('pages.borrow') }}</h1>
-      <p class="text-gray-600 dark:text-gray-400 mt-1">{{ t('track_income_expenses') }}</p>
-    </div>
-
     <!-- Summary Cards -->
     <div class="grid grid-cols-2 gap-4">
       <BaseCard>

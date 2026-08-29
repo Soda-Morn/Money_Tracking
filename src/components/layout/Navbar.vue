@@ -13,11 +13,12 @@ const navItems = computed(() => [
   { name: t('nav.home'),      path: '/',          icon: 'dashboard' },
   { name: t('nav.activity'),  path: '/activity',  icon: 'activity'  },
   { name: t('nav.savings'),   path: '/savings',   icon: 'savings'   },
-  { name: t('nav.borrow'),    path: '/borrow',    icon: 'loans'     },
+  { name: t('nav.borrow'),    path: '/loans',     icon: 'loans'     },
   { name: t('nav.analytics'), path: '/analytics', icon: 'chart'     },
 ])
 
-const isActive = (path) => route.path === path
+// Also match nested routes (e.g. /loans/:id should keep the Loans tab active)
+const isActive = (path) => route.path === path || route.path.startsWith(path + '/')
 
 const userInitials = computed(() => {
   const name = currentUser.value?.displayName || currentUser.value?.email || '?'

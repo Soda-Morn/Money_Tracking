@@ -67,8 +67,15 @@ export function installFakes({ projectId, publicKey, clientEmail }) {
       for (const w of writes) {
         if (w.delete) store.delete(strip(w.delete))
         else if (w.updateMask) {
+          // Like Firestore: masked fields are set from `fields`; masked fields
+          // missing from `fields` are deleted.
           const path = strip(w.update.name)
-          store.set(path, { ...(store.get(path) || {}), ...w.update.fields })
+          const next = { ...(store.get(path) || {}) }
+          for (const f of w.updateMask.fieldPaths) {
+            if (f in (w.update.fields || {})) next[f] = w.update.fields[f]
+            else delete next[f]
+          }
+          store.set(path, next)
         } else store.set(strip(w.update.name), w.update.fields)
       }
       return json({ writeResults: [] })

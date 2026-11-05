@@ -44,6 +44,57 @@ export function createData(fs) {
     patchTelegramSettings: (uid, fields) =>
       fs.commit([{ patch: `users/${uid}/settings/telegram`, data: fields, exists: true }]),
 
+    // ── Expense Planner (same paths/shape as the app's usePlanner.js) ─────────
+    plansInMonth: (uid, month) =>
+      fs.query(`users/${uid}`, 'plannedExpenses', { filters: [['month', 'EQUAL', month]] }),
+    plannerMonth: async (uid, month) => (await fs.get(`users/${uid}/plannerMonths/${month}`)) || null,
+    plannerSeries: (uid) => fs.list(`users/${uid}/plannedSeries`),
+    getPlan: (uid, id) => fs.get(`users/${uid}/plannedExpenses/${id}`),
+
+    /** Create-only (deterministic ids make retries / re-deliveries harmless). */
+    createPlan: (uid, id, data) => fs.commit([{ set: `users/${uid}/plannedExpenses/${id}`, data, exists: false }]),
+    patchPlan: (uid, id, fields) => fs.commit([{ patch: `users/${uid}/plannedExpenses/${id}`, data: fields, exists: true }]),
+    deletePlan: (uid, id) => fs.commit([{ delete: `users/${uid}/plannedExpenses/${id}`, exists: true }]),
+
+    /**
+     * Pay a plan exactly like the app: ONE atomic commit creates the real
+     * expense `transactions/plan_<id>` (create-only → the app and the bot can
+     * never both pay it) and marks the plan paid.
+     */
+    payPlan: (uid, plan, { paidDate, createdAt, actualAmount }) => fs.commit([
+      {
+        set: `${tx(uid)}/plan_${plan.id}`,
+        exists: false,
+        data: {
+          type: 'expense',
+          // what was really paid (may differ from the plan; the plan keeps its own amount)
+          amount: Number(actualAmount ?? plan.amount),
+          category: plan.category,
+          description: plan.description ? `${plan.name} · ${plan.description}` : plan.name,
+          date: paidDate,
+          createdAt,
+          source: 'planner',
+          plannedExpenseId: plan.id,
+        },
+      },
+      {
+        patch: `users/${uid}/plannedExpenses/${plan.id}`,
+        exists: true,
+        data: { status: 'paid', actualAmount: Number(actualAmount ?? plan.amount), paidAt: paidDate, transactionId: `plan_${plan.id}`, updatedAt: createdAt },
+      },
+    ]),
+
+    /** Undo: remove that real expense and make the plan pending again (atomic). */
+    undoPlanPayment: (uid, plan, now) => fs.commit([
+      { delete: `${tx(uid)}/${plan.transactionId || `plan_${plan.id}`}` },
+      {
+        patch: `users/${uid}/plannedExpenses/${plan.id}`,
+        exists: true,
+        // keys with undefined values are removed by the update mask
+        data: { status: 'pending', actualAmount: undefined, paidAt: undefined, transactionId: undefined, updatedAt: now },
+      },
+    ]),
+
     /** Delete only if it exists in THIS user's collection. */
     deleteTransaction: (uid, id) => fs.commit([{ delete: `${tx(uid)}/${id}`, exists: true }]),
 

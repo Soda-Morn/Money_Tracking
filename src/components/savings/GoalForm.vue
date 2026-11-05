@@ -35,8 +35,14 @@ const priorityOptions = [
   { value: 'high',   label: 'priority_high' },
 ]
 
+// Saved amount may be 0 but never negative or non-numeric
+const savedAmountInvalid = computed(() => {
+  const v = String(form.value.currentAmount ?? '').trim()
+  return v !== '' && !(Number(v) >= 0)
+})
+
 const isValid = computed(() => {
-  return form.value.name && form.value.targetAmount > 0
+  return form.value.name && form.value.targetAmount > 0 && !savedAmountInvalid.value
 })
 
 const handleSubmit = () => {
@@ -44,7 +50,7 @@ const handleSubmit = () => {
   emit('submit', {
     ...form.value,
     targetAmount: Number(form.value.targetAmount),
-    currentAmount: Number(form.value.currentAmount)
+    currentAmount: Number(form.value.currentAmount) || 0
   })
 }
 </script>
@@ -93,14 +99,17 @@ const handleSubmit = () => {
       :required="true"
     />
 
-    <!-- Current Amount (only for new goals) -->
-    <BaseInput
-      v-if="!isEditing"
-      v-model="form.currentAmount"
-      type="number"
-      :label="t('initial_amount_optional')"
-      placeholder="0.00"
-    />
+    <!-- Amount saved: starting amount for new goals, editable later to correct mistakes -->
+    <div>
+      <BaseInput
+        v-model="form.currentAmount"
+        inputmode="decimal"
+        :label="isEditing ? t('saved_so_far') : t('initial_amount_optional')"
+        placeholder="0.00"
+        :error="savedAmountInvalid ? t('saved_amount_invalid') : ''"
+      />
+      <p v-if="isEditing && !savedAmountInvalid" class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">{{ t('saved_so_far_hint') }}</p>
+    </div>
 
     <!-- Deadline -->
     <BaseInput

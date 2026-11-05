@@ -4,14 +4,17 @@ import { useRouter } from 'vue-router'
 import { useBudget } from '../composables/useBudget'
 import { useCategories, defaultExpenseCategories } from '../composables/useCategories'
 import { useFormat } from '../composables/useFormat'
-import { useCurrency } from '../composables/useCurrency'
+import { useCurrency, USD_TO_KHR } from '../composables/useCurrency'
+import { useToast } from '../composables/useToast'
 import { useI18n } from 'vue-i18n'
 import BaseCard from '../components/ui/BaseCard.vue'
+import BaseButton from '../components/ui/BaseButton.vue'
 import AppIcon from '../components/ui/AppIcon.vue'
-import { ChevronLeft, Trash2, Target } from 'lucide-vue-next'
+import { ChevronLeft, Trash2, Target, Wallet } from 'lucide-vue-next'
 
 const router = useRouter()
-const { budgets, setCategoryBudget, removeCategoryBudget, removeBudget } = useBudget()
+const toast = useToast()
+const { budgets, setBudget, setCategoryBudget, removeCategoryBudget, removeBudget } = useBudget()
 const { expenseCategories } = useCategories()
 const { formatCurrency, getMonthName } = useFormat()
 const { currency } = useCurrency()
@@ -44,20 +47,57 @@ const categoryLimitRows = computed(() =>
   })
 )
 
+// Amounts are STORED in USD (like every other screen). In KHR display mode the
+// user types riel, so convert before saving — previously 400,000 ៛ was saved as $400,000.
+const toUsd = (typed) => {
+  const n = parseFloat(String(typed).replace(/,/g, ''))
+  if (isNaN(n) || n <= 0) return null
+  return currency.value === 'KHR' ? Math.round((n / USD_TO_KHR) * 100) / 100 : n
+}
+const amountPlaceholder = computed(() => (currency.value === 'KHR' ? '0 ៛' : '0.00'))
+
+// ── Monthly total (the dashboard's budget card needs this) ──────────────────
+const currentTotal = computed(() => {
+  const total = budgets.value[selectedMonth.value]?.total
+  return total > 0 ? total : null
+})
+const totalInput = ref('')
+const savingTotal = ref(false)
+
+const handleSaveTotal = async () => {
+  const usd = toUsd(totalInput.value)
+  if (usd === null) { toast.error(t('error_amount_required')); return }
+  savingTotal.value = true
+  try {
+    await setBudget(selectedMonth.value, usd)
+    totalInput.value = ''
+    toast.success(t('budget_total_saved'))
+  } catch (e) {
+    toast.error(t('toast_save_error'))
+  } finally {
+    savingTotal.value = false
+  }
+}
+
 // ── Category limit form ───────────────────────────────────────────────────────
 const newCategoryValue = ref('')
 const newCategoryAmount = ref('')
 const savingCategory = ref(false)
 
 const handleAddCategoryLimit = async () => {
-  if (!newCategoryValue.value || !newCategoryAmount.value) return
-  const amount = parseFloat(newCategoryAmount.value)
-  if (isNaN(amount) || amount <= 0) return
+  if (!newCategoryValue.value) return
+  const usd = toUsd(newCategoryAmount.value)
+  if (usd === null) { toast.error(t('error_amount_required')); return }
   savingCategory.value = true
-  await setCategoryBudget(selectedMonth.value, newCategoryValue.value, amount)
-  savingCategory.value = false
-  newCategoryValue.value = ''
-  newCategoryAmount.value = ''
+  try {
+    await setCategoryBudget(selectedMonth.value, newCategoryValue.value, usd)
+    newCategoryValue.value = ''
+    newCategoryAmount.value = ''
+  } catch (e) {
+    toast.error(t('toast_save_error'))
+  } finally {
+    savingCategory.value = false
+  }
 }
 
 const handleRemoveCategoryLimit = async (categoryValue) => {
@@ -71,9 +111,9 @@ const savedBudgets = computed(() =>
     .map(([monthKey, entry]) => {
       const [year, month] = monthKey.split('-').map(Number)
       const catCount = Object.keys(entry?.categories ?? {}).length
-      return { monthKey, catCount, label: `${getMonthName(month - 1)} ${year}` }
+      return { monthKey, catCount, total: entry?.total ?? 0, label: `${getMonthName(month - 1)} ${year}` }
     })
-    .filter(item => item.catCount > 0) // only show months that have category limits
+    .filter(item => item.catCount > 0 || item.total > 0) // months with a total and/or category limits
 )
 
 const handleRemove = async (monthKey) => {
@@ -105,8 +145,37 @@ const handleRemove = async (monthKey) => {
       <input
         v-model="selectedMonth"
         type="month"
-        class="w-full px-3 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+        class="w-full h-12 px-3.5 text-base sm:text-sm rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/40"
       />
+    </BaseCard>
+
+    <!-- Monthly total (previously impossible to set — the dashboard budget card depends on it) -->
+    <BaseCard>
+      <div class="flex items-start gap-3 mb-3">
+        <span class="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-900/30 dark:text-primary-300 flex items-center justify-center shrink-0">
+          <AppIcon :icon="Wallet" size="button" />
+        </span>
+        <div class="min-w-0">
+          <h2 class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('monthly_total') }}</h2>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+            <template v-if="currentTotal !== null">{{ t('monthly_total_current') }} <span class="tabular font-semibold text-gray-900 dark:text-white">{{ formatCurrency(currentTotal) }}</span></template>
+            <template v-else>{{ t('monthly_total_desc') }}</template>
+          </p>
+        </div>
+      </div>
+      <div class="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+        <input
+          v-model="totalInput"
+          inputmode="decimal"
+          :placeholder="amountPlaceholder"
+          :aria-label="t('monthly_total')"
+          class="w-full min-w-0 h-12 px-3.5 text-base sm:text-sm rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+          @keyup.enter="handleSaveTotal"
+        />
+        <BaseButton :loading="savingTotal" :disabled="!totalInput" class="h-12" @click="handleSaveTotal">
+          {{ currentTotal !== null ? t('update') : t('save') }}
+        </BaseButton>
+      </div>
     </BaseCard>
 
     <!-- Category limits -->
@@ -154,10 +223,13 @@ const handleRemove = async (monthKey) => {
           {{ t('no_category_limits') }}
         </p>
 
-        <div v-if="availableCategories.length > 0" class="flex gap-2">
+        <!-- Phones: category on its own row, then amount + Add. sm+: one row.
+             minmax(0,1fr) + min-w-0 stop a long category name from pushing Add off-screen. -->
+        <div v-if="availableCategories.length > 0" class="grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[minmax(0,1fr)_8rem_auto] gap-2">
           <select
             v-model="newCategoryValue"
-            class="flex-1 px-3 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+            :aria-label="t('category')"
+            class="col-span-2 sm:col-span-1 w-full min-w-0 h-12 px-3.5 text-base sm:text-sm rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/40"
           >
             <option value="">{{ t('select_category') }}</option>
             <option v-for="cat in availableCategories" :key="cat.value" :value="cat.value">
@@ -166,20 +238,20 @@ const handleRemove = async (monthKey) => {
           </select>
           <input
             v-model="newCategoryAmount"
-            type="number"
-            min="0"
-            step="any"
-            :placeholder="currency === 'KHR' ? '0 ៛' : '0.00'"
-            class="w-28 px-3 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+            inputmode="decimal"
+            :placeholder="amountPlaceholder"
+            :aria-label="t('amount')"
+            class="w-full min-w-0 h-12 px-3.5 text-base sm:text-sm rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/40"
             @keyup.enter="handleAddCategoryLimit"
           />
-          <button
-            class="px-3 py-2 text-sm font-semibold text-white bg-green-600 hover:bg-green-700 rounded-xl transition-colors disabled:opacity-50"
-            :disabled="savingCategory || !newCategoryValue || !newCategoryAmount"
+          <BaseButton
+            class="h-12"
+            :loading="savingCategory"
+            :disabled="!newCategoryValue || !newCategoryAmount"
             @click="handleAddCategoryLimit"
           >
-            {{ savingCategory ? '...' : t('add') }}
-          </button>
+            {{ t('add') }}
+          </BaseButton>
         </div>
 
         <p v-else class="text-xs text-gray-400 dark:text-gray-500 text-center py-1">
@@ -202,7 +274,8 @@ const handleRemove = async (monthKey) => {
           <div>
             <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ item.label }}</p>
             <p class="text-xs text-primary-600 dark:text-primary-400 font-medium mt-0.5">
-              {{ item.catCount }} {{ t('category_limits_count') }}
+              <template v-if="item.total > 0">{{ t('monthly_total') }} {{ formatCurrency(item.total) }}<template v-if="item.catCount"> · </template></template>
+              <template v-if="item.catCount">{{ item.catCount }} {{ t('category_limits_count') }}</template>
             </p>
           </div>
           <button

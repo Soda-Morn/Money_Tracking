@@ -51,8 +51,10 @@ export function createTelegram(env, { defer = false } = {}) {
       queue('editMessageText', { chat_id: chatId, message_id: messageId, text, ...opts(keyboard) }),
     answer: (callbackId, text) => call('answerCallbackQuery', { callback_query_id: callbackId, ...(text ? { text } : {}) }),
     setCommands: (commands) => call('setMyCommands', { commands }),
-    /** The "Menu" button left of the message box → opens the command list. */
-    setMenuButton: () => call('setChatMenuButton', { menu_button: { type: 'commands' } }),
+    /** Remove the registered command list (typed commands keep working). */
+    deleteCommands: () => call('deleteMyCommands', {}),
+    /** 'default' + no command list → Telegram shows no blue "Menu" pill. */
+    setMenuButton: (type = 'default') => call('setChatMenuButton', { menu_button: { type } }),
     /** The held-back final call, to be returned as the webhook response. */
     takePending: () => { const p = pending; pending = null; return p },
   }

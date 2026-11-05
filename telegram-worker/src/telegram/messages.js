@@ -90,9 +90,16 @@ Wrong category? Tap the right one under “Saved”. ↩️ Undo is always there
 Prefer a confirm step? ☰ More → ⚙️ Settings. Amounts are in USD, like the app.
 
 <b>Buttons</b> at the bottom of the chat:
-➖ Expense · ➕ Income · 💰 Balance · 📊 Report · 🧾 Recent · 🎯 Budget · ☰ More
+➖ Expense · ➕ Income · 💰 Balance · 📊 Report · 🧾 Recent · 🎯 Budget · 🗓 Plan · ☰ More
+
+<b>Expense Planner</b> 🗓 — plan before payday (never changes your balance)
+/plan — this month: income, planned, left over, still to pay
+/planadd 120 Rent 10 — plan $120 “Rent” due on the 10th
+/plannext 120 Rent 10 — same, for next month
+Tap a plan → ✅ Mark paid (adds the real expense) or ⊘ Cancel
 
 <b>Commands</b> (optional)
+/today · /yesterday · /day 2026-11-03 — what you spent on a day
 /balance · /report · /report_year · /recent · /delete
 /budget · /budget_food · /budget_remaining
 /income · /expense (add <code>_today</code> for today)

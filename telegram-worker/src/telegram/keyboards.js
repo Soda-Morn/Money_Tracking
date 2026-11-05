@@ -17,16 +17,20 @@ export const KEYS = {
   report: '📊 Report',
   recent: '🧾 Recent',
   budget: '🎯 Budget',
+  plan: '🗓 Plan',
   more: '☰ More',
 }
 export const mainKeyboard = () => ({
   keyboard: [
     [{ text: KEYS.expense }, { text: KEYS.income }],
     [{ text: KEYS.balance }, { text: KEYS.report }, { text: KEYS.recent }],
-    [{ text: KEYS.budget }, { text: KEYS.more }],
+    [{ text: KEYS.budget }, { text: KEYS.plan }, { text: KEYS.more }],
   ],
   resize_keyboard: true,
-  is_persistent: true,
+  // Collapsible: closed by default after use; Telegram shows a ⌘ keyboard icon
+  // in the message box to open it again (or Menu → /menu).
+  is_persistent: false,
+  one_time_keyboard: true,
   input_field_placeholder: 'Type 5 coffee or +100 salary',
 })
 
@@ -35,7 +39,8 @@ export const moreMenu = () => ({
   inline_keyboard: [
     [btn('📥 Income', 'sum:income:month'), btn('📤 Expenses', 'sum:expense:month')],
     [btn('🎯 Budgets', 'm:budget'), btn('🗑 Delete', 'm:delete')],
-    [btn('📅 This year', 'rp:y:now'), btn('⚙️ Settings', 'm:settings')],
+    [btn('🗓 Spending plan', 'pl:now'), btn('📅 This year', 'rp:y:now')],
+    [btn('⚙️ Settings', 'm:settings')],
     [btn('❓ Help', 'm:help')],
   ],
 })
@@ -56,8 +61,69 @@ export const summaryToggle = (type, scope) => ({
   ],
 })
 
-export const recentActions = () => ({
-  inline_keyboard: [[btn('🗑 Delete one', 'm:delete'), btn('➖ Add expense', 'add:expense')]],
+// ── Day view (Today / Yesterday / any day) ──────────────────────────────────
+const shiftDay = (date, n) => {
+  const [y, m, d] = date.split('-').map(Number)
+  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10)
+}
+export const dayLabel = (date) => {
+  const [y, m, d] = date.split('-').map(Number)
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })
+}
+
+/** Quick row for Report / Recent: Today · Yesterday · Pick a day */
+export const dayShortcuts = (today) => [
+  btn('📅 Today', `rd:${today}`), btn('📅 Yesterday', `rd:${shiftDay(today, -1)}`), btn('🗓 Pick a day', 'rdp'),
+]
+
+export const dayNav = (date, today) => {
+  const prev = shiftDay(date, -1)
+  const next = shiftDay(date, 1)
+  const nav = [btn(`◀ ${dayLabel(prev)}`, `rd:${prev}`)]
+  if (next <= today) nav.push(btn(`${dayLabel(next)} ▶`, `rd:${next}`)) // never into the future
+  return {
+    inline_keyboard: [
+      nav,
+      [btn('🗓 Pick a day', 'rdp'), btn('📊 Month report', `rp:m:${date.slice(0, 7)}`)],
+    ],
+  }
+}
+
+/** Last 14 days, newest first. */
+export const dayPicker = (today) => ({
+  inline_keyboard: [
+    ...rows(Array.from({ length: 14 }, (_, i) => shiftDay(today, -i)).map((d, i) =>
+      btn(i === 0 ? 'Today' : i === 1 ? 'Yesterday' : dayLabel(d), `rd:${d}`)), 3),
+    [btn('◀️ Back', 'm:recent')],
+  ],
+})
+
+/** 🧾 Recent: choose WHAT to see first (no data is loaded for this screen). */
+export const recentChooser = (today) => ({
+  inline_keyboard: [
+    [btn('📅 Today', `rd:${today}`), btn('📅 Yesterday', `rd:${shiftDay(today, -1)}`)],
+    [btn('🗓 This month', `rmo:${today.slice(0, 7)}`), btn('🗓 Pick a day', 'rdp')],
+    [btn('🧾 Latest 10', 'm:latest')],
+  ],
+})
+
+/** Month list navigation (never into the future). */
+export const monthListNav = (month, today) => {
+  const [y, m] = month.split('-').map(Number)
+  const shift = (d) => {
+    const t = new Date(Date.UTC(y, m - 1 + d, 1))
+    return `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, '0')}`
+  }
+  const nav = [btn(`◀ ${shortMonth(shift(-1))}`, `rmo:${shift(-1)}`)]
+  if (month < today.slice(0, 7)) nav.push(btn(`${shortMonth(shift(1))} ▶`, `rmo:${shift(1)}`))
+  return { inline_keyboard: [nav, [btn('📅 Today', `rd:${today}`), btn('🗓 Pick a day', 'rdp')], [btn('◀️ Back', 'm:recent')]] }
+}
+
+export const recentActions = (today) => ({
+  inline_keyboard: [
+    ...(today ? [dayShortcuts(today)] : []),
+    [btn('🗑 Delete one', 'm:delete'), btn('➖ Add expense', 'add:expense')],
+  ],
 })
 
 // ── Add flow ──────────────────────────────────────────────────────────────────
@@ -141,12 +207,12 @@ export const confirmDelete = (id) => ({
 
 // ── Reports ───────────────────────────────────────────────────────────────────
 /** ◀ previous / next ▶ navigation; never offers a future period. */
-export function reportNav(mode, key, currentKey) {
+export function reportNav(mode, key, currentKey, today) {
   if (mode === 'year') {
     const y = Number(key)
     const nav = [btn(`◀ ${y - 1}`, `rp:y:${y - 1}`)]
     if (y < Number(currentKey.slice(0, 4))) nav.push(btn(`${y + 1} ▶`, `rp:y:${y + 1}`))
-    return { inline_keyboard: [nav, [btn('📊 This month', 'rp:m:now'), btn('🎯 Budget', 'm:budget')]] }
+    return { inline_keyboard: [dayShortcuts(today), nav, [btn('📊 This month', 'rp:m:now'), btn('🎯 Budget', 'm:budget')]] }
   }
   const [y, m] = key.split('-').map(Number)
   const shift = (d) => {
@@ -155,7 +221,7 @@ export function reportNav(mode, key, currentKey) {
   }
   const nav = [btn(`◀ ${shortMonth(shift(-1))}`, `rp:m:${shift(-1)}`)]
   if (key < currentKey) nav.push(btn(`${shortMonth(shift(1))} ▶`, `rp:m:${shift(1)}`))
-  return { inline_keyboard: [nav, [btn(`📅 Year ${y}`, `rp:y:${y}`), btn('🎯 Budget', 'm:budget')]] }
+  return { inline_keyboard: [dayShortcuts(today), nav, [btn(`📅 Year ${y}`, `rp:y:${y}`), btn('🎯 Budget', 'm:budget')]] }
 }
 
 export const budgetActions = () => ({

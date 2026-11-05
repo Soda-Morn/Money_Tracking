@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useToast } from '../composables/useToast'
 import { useSavingsGoals } from '../composables/useSavingsGoals'
 import { useFormat } from '../composables/useFormat'
 import GoalCard from '../components/savings/GoalCard.vue'
@@ -14,6 +15,7 @@ import MobileFAB from '../components/ui/MobileFAB.vue'
 
 // translation helper
 const { t } = useI18n()
+const toast = useToast()
 
 const {
   goals,
@@ -49,10 +51,16 @@ const handleEdit = (goal) => {
   showEditModal.value = true
 }
 
-const handleUpdate = (data) => {
-  updateGoal(editingGoal.value.id, data)
-  showEditModal.value = false
-  editingGoal.value = null
+// Wait for the save so a failure is reported (editing can now change the saved amount)
+const handleUpdate = async (data) => {
+  try {
+    await updateGoal(editingGoal.value.id, data)
+    toast.success(t('goal_updated'))
+    showEditModal.value = false
+    editingGoal.value = null
+  } catch (e) {
+    toast.error(t('toast_save_error'))
+  }
 }
 
 const handleDelete = (id) => {

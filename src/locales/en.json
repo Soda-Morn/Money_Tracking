@@ -566,5 +566,14 @@
       "paid_cannot_delete": "Paid plans can't be deleted — undo the payment first.",
       "recurring_cancel_instead": "Repeating plans are cancelled rather than deleted."
     }
-  }
+  },
+  "monthly_total": "Monthly total",
+  "monthly_total_desc": "Your spending limit for the whole month. The dashboard shows how much is left.",
+  "monthly_total_current": "Current:",
+  "budget_total_saved": "Monthly total saved",
+  "save": "Save",
+  "saved_so_far": "Amount saved so far",
+  "saved_so_far_hint": "Fix this if you added the wrong amount or took money out.",
+  "saved_amount_invalid": "Enter 0 or a positive amount",
+  "goal_updated": "Goal updated"
 }

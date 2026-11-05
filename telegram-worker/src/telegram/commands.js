@@ -11,7 +11,7 @@
  *  - typing "5 coffee" / "+100 salary" starts a confirmed quick add
  *  - inline buttons EDIT the message they're on instead of posting new ones
  */
-import { totals, periodReport, budgetUsage, sumByType, periodRange } from '../../../src/shared/finance.js'
+import { totals, periodReport, budgetUsage, sumByType, periodRange, expenseByCategory } from '../../../src/shared/finance.js'
 import { categoryInfo } from '../../../src/shared/categories.js'
 import { linkWithCode, resolveUser, unlink } from '../security/linking.js'
 import { parseAddArgs, parseAmount, cleanDescription, slug, splitCategory, parseQuickEntry } from '../security/validation.js'
@@ -19,6 +19,8 @@ import { randomToken } from '../security/crypto.js'
 import { PreconditionError } from '../firebase/client.js'
 import * as kb from './keyboards.js'
 import { guessCategory } from './guess.js'
+import * as plan from './planner.js'
+import { addMonths } from '../../../src/shared/planner.js'
 import {
   esc, money, signedMoney, longDate, monthTitle, todayIn, dayBefore, catEmoji,
   TYPE_LABEL, TYPE_ICON, ERRORS, HELP, NOT_LINKED,
@@ -31,17 +33,21 @@ const MONTH_RE = /^(\d{4})-(0[1-9]|1[0-2])$/
 // Shown when the user taps Telegram's "Menu" button (left of the message box).
 // Most-used first; each one is a single tap.
 export const BOT_COMMANDS = [
+  // First item: tapping Telegram's "Menu" → this one opens the full button menu
+  { command: 'menu', description: '📋 Open the menu (all buttons)' },
   { command: 'add', description: '➕ Add expense or income' },
   { command: 'balance', description: '💰 Balance and totals' },
   { command: 'report', description: '📊 This month\'s report' },
+  { command: 'plan', description: '🗓 Spending plan: what\'s still to pay' },
+  { command: 'planadd', description: '🗓 Plan an expense (e.g. 120 Rent 10)' },
+  { command: 'today', description: '📅 What I spent today' },
+  { command: 'yesterday', description: '📅 What I spent yesterday' },
   { command: 'recent', description: '🧾 Latest 10 transactions' },
-  { command: 'expense_today', description: '📤 What I spent today' },
   { command: 'income', description: '📥 This month\'s income' },
   { command: 'budget', description: '🎯 Budgets this month' },
   { command: 'report_year', description: '📅 This year\'s report' },
   { command: 'delete', description: '🗑 Delete a transaction' },
   { command: 'settings', description: '⚙️ Settings' },
-  { command: 'menu', description: '📋 Show the button keyboard' },
   { command: 'help', description: '❓ How to use the bot' },
 ]
 let commandsRegistered = false
@@ -81,14 +87,17 @@ export async function handleUpdate(update, deps) {
 }
 
 /**
- * Register the command list + the "Menu" button with Telegram. Telegram keeps
- * these permanently; we refresh once per Worker instance (in the background,
- * so the reply isn't delayed) whenever someone sends /start or /menu or links.
+ * No blue "Menu" pill (owner's choice): remove the registered command list and
+ * set the menu button to 'default' — Telegram then shows no pill. The button
+ * panel opens from Telegram's own keyboard icon instead. All commands in
+ * BOT_COMMANDS still work when typed. Runs once per Worker instance, in the
+ * background so replies aren't delayed.
+ * To bring the pill back: setCommands(BOT_COMMANDS) + setMenuButton('commands').
  */
 function registerCommandsOnce(deps) {
   if (commandsRegistered) return
   commandsRegistered = true
-  deps.background(Promise.all([deps.tg.setCommands(BOT_COMMANDS), deps.tg.setMenuButton()]))
+  deps.background(Promise.all([deps.tg.deleteCommands(), deps.tg.setMenuButton('default')]))
 }
 
 function makeCtx(deps, from, chatId, user, messageId) {
@@ -154,13 +163,17 @@ async function handleText(ctx, text) {
     case kb.KEYS.income: return beginAdd(ctx, 'income')
     case kb.KEYS.balance: return showBalance(ctx)
     case kb.KEYS.report: return showReport(ctx, 'month', ctx.today.slice(0, 7))
-    case kb.KEYS.recent: return showRecent(ctx)
+    case kb.KEYS.recent: return showRecentChooser(ctx)
     case kb.KEYS.budget: return showBudget(ctx)
+    case kb.KEYS.plan: return plan.showPlan(ctx)
     case kb.KEYS.more: return ctx.show('☰ <b>More</b>', kb.moreMenu())
     default: break
   }
 
   const s = activeSession(ctx)
+  if (s?.step === 'plan_text') return plan.addPlan(ctx, s.month, text)
+  if (s?.step === 'pay_amount') return plan.receivePayAmount(ctx, text)
+  if (s?.step === 'plan_cat') return ctx.send('👆 Tap a category above, or ✖️ Cancel.')
   if (s?.step === 'amount') {
     // Accept "5" and also "5 coffee" here; the button already chose the type,
     // so a sign ("-5") is rejected rather than silently dropped
@@ -209,7 +222,8 @@ async function runCommand(ctx, cmd, args) {
     case 'addexpense': return args ? quickAddArgs(ctx, 'expense', args) : beginAdd(ctx, 'expense')
     case 'add': return beginAdd(ctx)
     case 'transactions':
-    case 'recent': return showRecent(ctx)
+    case 'recent': return showRecentChooser(ctx)
+    case 'latest': return showRecent(ctx)
     case 'delete': return startDelete(ctx)
     case 'report': return showReport(ctx, 'month', ctx.today.slice(0, 7))
     case 'report_month':
@@ -218,6 +232,16 @@ async function runCommand(ctx, cmd, args) {
       return showReport(ctx, 'year', /^\d{4}$/.test(args) ? args : ctx.today.slice(0, 4))
     case 'budget': return showBudget(ctx, args ? { only: slug(args) } : {})
     case 'budget_remaining': return showBudget(ctx, { remainingOnly: true })
+    case 'plan': return plan.showPlan(ctx)
+    case 'today': return showDay(ctx, ctx.today)
+    case 'yesterday': return showDay(ctx, dayBefore(ctx.today))
+    case 'day': return DATE_RE.test(args) ? showDay(ctx, args) : ctx.show('🗓 Which day?', kb.dayPicker(ctx.today))
+    case 'plan_next': return plan.showPlan(ctx, addMonths(ctx.today.slice(0, 7), 1))
+    case 'planadd': return args ? plan.addPlan(ctx, ctx.today.slice(0, 7), args) : plan.askPlanText(ctx, ctx.today.slice(0, 7))
+    case 'plannext': {
+      const next = addMonths(ctx.today.slice(0, 7), 1)
+      return args ? plan.addPlan(ctx, next, args) : plan.askPlanText(ctx, next)
+    }
     case 'settings': return showSettings(ctx)
     case 'cancel':
       await endSession(ctx)
@@ -490,7 +514,72 @@ async function confirmSave(ctx, nonce) {
 async function showRecent(ctx) {
   const [txs, cats] = await Promise.all([ctx.data.recentTransactions(ctx.uid, 10), ctx.data.categories(ctx.uid)])
   if (!txs.length) return ctx.show('🧾 No transactions yet.\nType an amount like <code>5 coffee</code> to add one.')
-  return ctx.show(`🧾 <b>Latest ${txs.length}</b>\n\n${txs.map((t) => txLine(t, cats, ctx.currency)).join('\n')}`, kb.recentActions())
+  return ctx.show(`🧾 <b>Latest ${txs.length}</b>\n\n${txs.map((t) => txLine(t, cats, ctx.currency)).join('\n')}`, kb.recentActions(ctx.today))
+}
+
+// ── 🧾 Recent: pick first, then load only what was picked ──────────────────
+function showRecentChooser(ctx) {
+  // No transaction query here — this screen must appear instantly.
+  return ctx.show('🧾 <b>Recent</b> — what would you like to see?', kb.recentChooser(ctx.today))
+}
+
+const MONTH_KEY_RE = /^\d{4}-(0[1-9]|1[0-2])$/
+
+async function showMonthList(ctx, month) {
+  if (!MONTH_KEY_RE.test(month || '') || month > ctx.today.slice(0, 7)) month = ctx.today.slice(0, 7)
+  const range = periodRange('month', Number(month.slice(0, 4)), Number(month.slice(5, 7)) - 1)
+  const [txs, cats] = await Promise.all([
+    ctx.data.transactionsBetween(ctx.uid, range.start, range.end),
+    ctx.data.categories(ctx.uid),
+  ])
+  const c = ctx.currency
+  const header = `🗓 <b>${esc(monthTitle(month))}</b>`
+  if (!txs.length) return ctx.show(`${header}\n\nNothing recorded this month.`, kb.monthListNav(month, ctx.today))
+  const t = totals(txs) // same rules as the app
+  const rows = [...txs].sort(byDateDesc)
+  return ctx.show(
+    `${header}\n\n` +
+    `➖ <b>Spent ${money(t.expense, c)}</b>\n` +
+    `➕ Income ${money(t.income, c)}\n` +
+    `= ${signedMoney(t.balance, c)} · ${rows.length} transaction${rows.length === 1 ? '' : 's'}\n\n` +
+    rows.slice(0, 20).map((x) => txLine(x, cats, c)).join('\n') +
+    (rows.length > 20 ? `\n…and ${rows.length - 20} more — pick a day to see them` : ''),
+    kb.monthListNav(month, ctx.today)
+  )
+}
+
+// ── One day: "how much did I spend today / yesterday / on …" ────────────────
+const DATE_RE = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/
+
+async function showDay(ctx, date) {
+  if (!DATE_RE.test(date || '') || date > ctx.today) date = ctx.today // never the future
+  const [txs, cats] = await Promise.all([
+    ctx.data.transactionsBetween(ctx.uid, date, date),
+    ctx.data.categories(ctx.uid),
+  ])
+  const c = ctx.currency
+  const t = totals(txs) // same rules as the app
+  const yesterday = dayBefore(ctx.today)
+  const title = date === ctx.today ? 'Today' : date === yesterday ? 'Yesterday' : ''
+  const header = `📅 <b>${title ? `${title} · ` : ''}${esc(kb.dayLabel(date))}</b>`
+
+  if (!txs.length) {
+    return ctx.show(`${header}\n\nNothing recorded on this day.`, kb.dayNav(date, ctx.today))
+  }
+  const top = expenseByCategory(txs)[0]
+  const topInfo = top ? categoryInfo(top.category, 'expense', cats) : null
+  const rows = [...txs].sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+  return ctx.show(
+    `${header}\n\n` +
+    `➖ <b>Spent ${money(t.expense, c)}</b>\n` +
+    `➕ Income ${money(t.income, c)}\n` +
+    (t.borrow || t.payback ? `🤝 Borrowed ${money(t.borrow, c)} · ↩️ Repaid ${money(t.payback, c)}\n` : '') +
+    `= ${signedMoney(t.balance, c)} for the day\n` +
+    (topInfo ? `🏆 Most on: ${catEmoji(topInfo.icon)} ${esc(topInfo.label)} · ${money(top.amount, c)}\n` : '') +
+    `\n${rows.slice(0, 20).map((x) => txLine(x, cats, c)).join('\n')}` +
+    (rows.length > 20 ? `\n…and ${rows.length - 20} more` : ''),
+    kb.dayNav(date, ctx.today)
+  )
 }
 
 async function startDelete(ctx) {
@@ -522,7 +611,7 @@ async function doDelete(ctx, id, doneText) {
     throw e
   }
   console.log(JSON.stringify({ event: 'transaction_deleted' }))
-  return ctx.show(doneText || '🗑 Deleted — it\'s gone from the app too.', kb.recentActions())
+  return ctx.show(doneText || '🗑 Deleted — it\'s gone from the app too.', kb.recentActions(ctx.today))
 }
 
 // ── Reports & budgets ─────────────────────────────────────────────────────────
@@ -552,7 +641,7 @@ async function showReport(ctx, mode, key) {
     `🏆 Top spending: ${top}\n` +
     `📆 Avg per day: ${r.avgDailySpend === null ? '—' : money(r.avgDailySpend, c)}\n` +
     `${trend}`,
-    kb.reportNav(mode, mode === 'year' ? String(y) : key, mode === 'year' ? ctx.today.slice(0, 4) : ctx.today.slice(0, 7))
+    kb.reportNav(mode, mode === 'year' ? String(y) : key, mode === 'year' ? ctx.today.slice(0, 4) : ctx.today.slice(0, 7), ctx.today)
   )
 }
 
@@ -626,7 +715,8 @@ async function handleCallback(cq, deps) {
     case 'm': {
       const screens = {
         balance: () => showBalance(ctx),
-        recent: () => showRecent(ctx),
+        recent: () => showRecentChooser(ctx),
+        latest: () => showRecent(ctx),
         budget: () => showBudget(ctx),
         delete: () => startDelete(ctx),
         settings: () => showSettings(ctx),
@@ -697,6 +787,37 @@ async function handleCallback(cq, deps) {
       if (s?.step !== 'confirm' || s.nonce !== value) return ctx.show(ERRORS.session_expired)
       return askCategory(ctx, { ...s.draft, category: undefined, categoryLabel: undefined, categoryIcon: undefined })
     case 'ok': return confirmSave(ctx, value)
+    // ── Day view ──
+    case 'rd':
+      if (!DATE_RE.test(value)) return
+      return showDay(ctx, value)
+    case 'rmo':
+      if (!MONTH_KEY_RE.test(value)) return
+      return showMonthList(ctx, value)
+    case 'rdp': return ctx.show('🗓 <b>Pick a day</b>', kb.dayPicker(ctx.today))
+    // ── Expense Planner (ids are only looked up in this user's own plans) ──
+    case 'pl': return plan.showPlan(ctx, value === 'now' ? ctx.today.slice(0, 7) : value)
+    case 'pa': return plan.askPlanText(ctx, value)
+    case 'pi': return plan.showPlanItem(ctx, value)
+    case 'pp': return plan.startPay(ctx, value)
+    case 'ppc': return plan.confirmPay(ctx, value)
+    case 'ppa': return plan.askPayAmount(ctx, value)
+    case 'ppb': return plan.backToPay(ctx, value)
+    case 'ppd': return plan.togglePayDate(ctx, value)
+    case 'pcat':
+      if (!/^\d{1,2}$/.test(value)) return // index into the session's category list
+      return plan.pickPlanCategory(ctx, value)
+    case 'prcm': return plan.chooseNewCategory(ctx, value)
+    case 'pu': return plan.undoPlanPayment(ctx, value)
+    case 'pc': return plan.askCancelPlan(ctx, value)
+    case 'pcy': return plan.setPlanStatus(ctx, value, 'cancelled')
+    case 'prs': return plan.setPlanStatus(ctx, value, 'pending')
+    case 'pd': return plan.undoAddPlan(ctx, value)
+    case 'prc': {
+      const [id, catId] = value.split(':')
+      if (!plan.PLAN_ID_RE.test(id || '') || !DOC_ID_RE.test(catId || '')) return
+      return plan.recategorizePlan(ctx, id, catId)
+    }
     case 'no':
     case 'cancel':
       await endSession(ctx)

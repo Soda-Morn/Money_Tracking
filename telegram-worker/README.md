@@ -162,6 +162,10 @@ Each update logs `update_done` with its duration (`ms`) in Cloudflare → Observ
 | `/delete` | Pick one of the last 10 → see details → confirm |
 | `/report`, `/report_month [YYYY-MM]`, `/report_year [YYYY]` | Income, expenses, net savings, savings rate, top category, average daily spend, change vs previous period |
 | `/budget`, `/budget_remaining`, `/budget_food` | This month's budgets: limit, spent, remaining, % used |
+| `/plan` (or **🗓 Plan**) | Expense Planner for this month: expected income, planned, savings, remaining, and what's still to pay (overdue first). ◀ ▶ switch months |
+| Tap a plan → **✅ Mark paid** | Creates the real expense `transactions/plan_<id>` + marks the plan paid in one atomic write — the app and the bot can never both pay it. **↩️ Undo payment** reverses it |
+| Tap a plan → **⊘ Cancel plan** | Asks first; restore any time |
+| `/planadd 120 Rent 10` · `/plannext 120 Rent 10` | Plan $120 "Rent" due on the 10th of this / next month (category guessed, one-tap fixes, Undo). Planning never changes your balance |
 | `/cancel`, `/unlink`, `/help` | Stop current step · disconnect · help |
 
 Amounts are entered in **USD** (the app's storage currency); results are shown in your app currency (USD or KHR).

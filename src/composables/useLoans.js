@@ -1,9 +1,10 @@
 import { ref, computed } from 'vue'
-import { db, auth } from '../firebase'
+import { auth } from '../firebase'
+import { db } from '../firestore'
 import { onAuthStateChanged } from 'firebase/auth'
 import {
   collection, onSnapshot, addDoc, updateDoc,
-  deleteDoc, doc, query, orderBy
+  deleteDoc, doc, query, orderBy, writeBatch
 } from 'firebase/firestore'
 
 /**
@@ -29,24 +30,48 @@ const loading = ref(true)
 let _unsubLoans = null
 let _unsubPayments = null
 
+// Data is only cleared on logout — not before the new listeners connect — to prevent blank screens.
+// `loading` stays true until BOTH listeners have delivered their first snapshot (or failed).
 onAuthStateChanged(auth, (user) => {
   if (_unsubLoans) { _unsubLoans(); _unsubLoans = null }
   if (_unsubPayments) { _unsubPayments(); _unsubPayments = null }
-  loans.value = []
-  loanPayments.value = []
 
   if (user) {
     loading.value = true
+    let loansReady = false
+    let paymentsReady = false
+    const markReady = () => { if (loansReady && paymentsReady) loading.value = false }
+
     const loansQ = query(collection(db, 'users', user.uid, 'loans'), orderBy('createdAt', 'desc'))
-    _unsubLoans = onSnapshot(loansQ, (snap) => {
+    _unsubLoans = onSnapshot(loansQ, { includeMetadataChanges: true }, (snap) => {
+      // Empty on-device cache (first visit) ≠ "no data": wait for the server
+      if (snap.metadata.fromCache && snap.empty && navigator.onLine) return
+      if (loansReady && snap.docChanges().length === 0) return // metadata-only
       loans.value = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      loansReady = true
+      markReady()
+    }, (error) => {
+      console.error('[loans] listener error:', error)
+      loansReady = true
+      markReady()
     })
+
     const paymentsQ = query(collection(db, 'users', user.uid, 'loanPayments'), orderBy('paymentDate', 'desc'))
-    _unsubPayments = onSnapshot(paymentsQ, (snap) => {
+    _unsubPayments = onSnapshot(paymentsQ, { includeMetadataChanges: true }, (snap) => {
+      // Empty on-device cache (first visit) ≠ "no data": wait for the server
+      if (snap.metadata.fromCache && snap.empty && navigator.onLine) return
+      if (paymentsReady && snap.docChanges().length === 0) return // metadata-only
       loanPayments.value = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-      loading.value = false
+      paymentsReady = true
+      markReady()
+    }, (error) => {
+      console.error('[loanPayments] listener error:', error)
+      paymentsReady = true
+      markReady()
     })
   } else {
+    loans.value = []
+    loanPayments.value = []
     loading.value = false
   }
 })
@@ -82,36 +107,75 @@ const addInterval = (date, loan) => {
 const round2 = (n) => Math.round(n * 100) / 100
 
 export function useLoans() {
-  const uid = () => auth.currentUser?.uid
+  // Throws instead of silently writing to `users/undefined/...` when signed out.
+  const requireUid = () => {
+    const id = auth.currentUser?.uid
+    if (!id) throw new Error('Not authenticated')
+    return id
+  }
+
+  // Log with a tag and re-throw so the calling page can show an error toast.
+  const run = async (label, fn) => {
+    try {
+      return await fn()
+    } catch (error) {
+      console.error(`[loans] ${label} failed:`, error)
+      throw error
+    }
+  }
 
   // ── CRUD: Loans ──────────────────────────────────────────────────────────────
   const addLoan = async (data) => {
+    const id = requireUid()
     const now = new Date().toISOString()
-    await addDoc(collection(db, 'users', uid(), 'loans'), { ...data, archived: false, createdAt: now, updatedAt: now })
+    await run('addLoan', () =>
+      addDoc(collection(db, 'users', id, 'loans'), { ...data, archived: false, createdAt: now, updatedAt: now }))
   }
-  const updateLoan = async (id, updates) => {
-    await updateDoc(doc(db, 'users', uid(), 'loans', id), { ...updates, updatedAt: new Date().toISOString() })
+  const updateLoan = async (loanId, updates) => {
+    const id = requireUid()
+    await run('updateLoan', () =>
+      updateDoc(doc(db, 'users', id, 'loans', loanId), { ...updates, updatedAt: new Date().toISOString() }))
   }
-  const deleteLoan = async (id) => {
-    await deleteDoc(doc(db, 'users', uid(), 'loans', id))
-    // Delete this loan's payments too so they don't orphan in the collection.
-    const orphaned = loanPayments.value.filter(p => p.loanId === id)
-    await Promise.all(orphaned.map(p => deleteDoc(doc(db, 'users', uid(), 'loanPayments', p.id))))
+  const deleteLoan = async (loanId) => {
+    const id = requireUid()
+    // Delete payments first, then the loan, in batched writes (max 500 ops each).
+    // Payments-first order means a failure part-way leaves the loan visible so
+    // the user can simply retry — never orphaned payments with no loan.
+    const refs = [
+      ...loanPayments.value
+        .filter(p => p.loanId === loanId)
+        .map(p => doc(db, 'users', id, 'loanPayments', p.id)),
+      doc(db, 'users', id, 'loans', loanId),
+    ]
+    await run('deleteLoan', async () => {
+      for (let i = 0; i < refs.length; i += 500) {
+        const batch = writeBatch(db)
+        refs.slice(i, i + 500).forEach(ref => batch.delete(ref))
+        await batch.commit()
+      }
+    })
   }
-  const archiveLoan = async (id, archived = true) => {
-    await updateDoc(doc(db, 'users', uid(), 'loans', id), { archived, updatedAt: new Date().toISOString() })
+  const archiveLoan = async (loanId, archived = true) => {
+    const id = requireUid()
+    await run('archiveLoan', () =>
+      updateDoc(doc(db, 'users', id, 'loans', loanId), { archived, updatedAt: new Date().toISOString() }))
   }
 
   // ── CRUD: Payments ───────────────────────────────────────────────────────────
   const addPayment = async (loanId, data) => {
+    const id = requireUid()
     const now = new Date().toISOString()
-    await addDoc(collection(db, 'users', uid(), 'loanPayments'), { ...data, loanId, createdAt: now, updatedAt: now })
+    await run('addPayment', () =>
+      addDoc(collection(db, 'users', id, 'loanPayments'), { ...data, loanId, createdAt: now, updatedAt: now }))
   }
-  const updatePayment = async (id, updates) => {
-    await updateDoc(doc(db, 'users', uid(), 'loanPayments', id), { ...updates, updatedAt: new Date().toISOString() })
+  const updatePayment = async (paymentId, updates) => {
+    const id = requireUid()
+    await run('updatePayment', () =>
+      updateDoc(doc(db, 'users', id, 'loanPayments', paymentId), { ...updates, updatedAt: new Date().toISOString() }))
   }
-  const deletePayment = async (id) => {
-    await deleteDoc(doc(db, 'users', uid(), 'loanPayments', id))
+  const deletePayment = async (paymentId) => {
+    const id = requireUid()
+    await run('deletePayment', () => deleteDoc(doc(db, 'users', id, 'loanPayments', paymentId)))
   }
 
   // ── Derived calculations — always computed fresh, never cached/stored ────────

@@ -8,6 +8,27 @@ import { useCurrency } from './useCurrency'
 // Plain function (not part of useFormat()) since it needs no reactive i18n/currency state.
 export const sortByDateDesc = (a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)
 
+// Date → 'YYYY-MM-DD' in the user's LOCAL timezone.
+// Never use toISOString() for this: it is UTC, so in Cambodia (UTC+7) any time
+// between 00:00 and 07:00 would produce yesterday's date.
+export const toLocalDateString = (date) => {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+// 'YYYY-MM-DD' → Date at LOCAL midnight. `new Date('2026-11-05')` parses as UTC,
+// which can shift the day in some timezones. Full timestamps are parsed as-is.
+const parseDate = (value) => {
+  if (value instanceof Date) return value
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [y, m, d] = value.split('-').map(Number)
+    return new Date(y, m - 1, d)
+  }
+  return new Date(value)
+}
+
 export function useFormat() {
   const { locale, t } = useI18n()
   const { currency, convertAmount } = useCurrency()
@@ -32,7 +53,7 @@ export function useFormat() {
 
   // Format date for display
   const formatDate = (dateString) => {
-    const date = new Date(dateString)
+    const date = parseDate(dateString)
     return date.toLocaleDateString(locale.value || 'en-US', {
       weekday: 'short',
       year: 'numeric',
@@ -43,14 +64,13 @@ export function useFormat() {
 
   // Format date as relative (Today, Yesterday, etc.)
   const formatRelativeDate = (dateString) => {
-    const date = new Date(dateString)
     const today = new Date()
     const yesterday = new Date(today)
     yesterday.setDate(yesterday.getDate() - 1)
 
-    const dateOnly = dateString.split('T')[0]
-    const todayOnly = today.toISOString().split('T')[0]
-    const yesterdayOnly = yesterday.toISOString().split('T')[0]
+    const dateOnly = toLocalDateString(parseDate(dateString))
+    const todayOnly = toLocalDateString(today)
+    const yesterdayOnly = toLocalDateString(yesterday)
 
     if (dateOnly === todayOnly) return t('today')
     if (dateOnly === yesterdayOnly) return t('yesterday')
@@ -59,7 +79,7 @@ export function useFormat() {
 
   // Get current date in YYYY-MM-DD format
   const getCurrentDate = () => {
-    return new Date().toISOString().split('T')[0]
+    return toLocalDateString(new Date())
   }
 
   // Get month name (localized)

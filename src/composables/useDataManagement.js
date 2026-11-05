@@ -1,4 +1,5 @@
-import { db, auth } from '../firebase'
+import { auth } from '../firebase'
+import { db } from '../firestore'
 import {
   collection, doc, getDocs, writeBatch, setDoc
 } from 'firebase/firestore'
@@ -6,6 +7,7 @@ import { useTransactions } from './useTransactions'
 import { useSavingsGoals } from './useSavingsGoals'
 import { useCategories } from './useCategories'
 import { useBudget } from './useBudget'
+import { useLoans } from './useLoans'
 
 const BATCH_LIMIT = 500 // Firestore max ops per batch
 
@@ -42,6 +44,7 @@ export function useDataManagement() {
   const { goals } = useSavingsGoals()
   const { customCategories } = useCategories()
   const { budgets } = useBudget()
+  const { loans, loanPayments } = useLoans()
 
   const uid = () => auth.currentUser?.uid
 
@@ -59,12 +62,14 @@ export function useDataManagement() {
   const backupJson = () => {
     const payload = {
       app: 'FinanceFlow',
-      version: 1,
+      version: 2, // v2 adds loans + loanPayments (v1 files still restore fine)
       exportedAt: new Date().toISOString(),
       transactions: transactions.value,
       goals: goals.value,
       categories: customCategories.value,
       budgets: budgets.value,
+      loans: loans.value,
+      loanPayments: loanPayments.value,
     }
     downloadBlob(`financeflow-backup-${Date.now()}.json`, JSON.stringify(payload, null, 2), 'application/json')
   }
@@ -102,6 +107,27 @@ export function useDataManagement() {
       (payload.budgets && typeof payload.budgets === 'object')
         ? setDoc(doc(db, 'users', id, 'settings', 'budgets'), payload.budgets, { merge: true })
         : Promise.resolve(),
+      // Loans + payments KEEP their original document IDs: every payment points
+      // at its loan via `loanId`, so fresh IDs would orphan all payment history.
+      // (Side benefit: restoring the same file twice overwrites instead of duplicating.)
+      (Array.isArray(payload.loans) && payload.loans.length)
+        ? runInBatches(payload.loans, (batch, loan) => {
+            const { id: loanId, ...data } = loan
+            const ref = loanId
+              ? doc(db, 'users', id, 'loans', loanId)
+              : doc(collection(db, 'users', id, 'loans'))
+            batch.set(ref, data)
+          })
+        : Promise.resolve(),
+      (Array.isArray(payload.loanPayments) && payload.loanPayments.length)
+        ? runInBatches(payload.loanPayments, (batch, payment) => {
+            const { id: paymentId, ...data } = payment
+            const ref = paymentId
+              ? doc(db, 'users', id, 'loanPayments', paymentId)
+              : doc(collection(db, 'users', id, 'loanPayments'))
+            batch.set(ref, data)
+          })
+        : Promise.resolve(),
     ])
 
     // Transactions/goals/categories auto-refresh via their own onSnapshot
@@ -119,7 +145,7 @@ export function useDataManagement() {
     if (!id) throw new Error('Not signed in')
 
     await Promise.all([
-      ...['transactions', 'goals', 'categories'].map(async (name) => {
+      ...['transactions', 'goals', 'categories', 'loans', 'loanPayments'].map(async (name) => {
         const snap = await getDocs(collection(db, 'users', id, name))
         const ids = snap.docs.map(d => d.id)
         await runInBatches(ids, (batch, docId) => {

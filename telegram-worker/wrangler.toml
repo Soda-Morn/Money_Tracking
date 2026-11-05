@@ -1,0 +1,22 @@
+# Cloudflare Worker for the Smart Money Tracking Telegram bot (Workers Free plan).
+#
+# NO SECRETS IN THIS FILE. Set them with `npx wrangler secret put <NAME>`:
+#   TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET, LINK_SIGNING_KEY,
+#   FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY
+# For local `wrangler dev`, put them in .dev.vars (git-ignored).
+
+name = "smart-money-telegram"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+# Public address Telegram calls: https://smart-money-telegram.<account>.workers.dev
+workers_dev = true
+# No extra per-version preview URLs — only the one webhook address
+preview_urls = false
+
+[vars]
+# Used when the linking browser didn't report a timezone
+DEFAULT_TIMEZONE = "Asia/Phnom_Penh"
+
+[observability]
+enabled = true

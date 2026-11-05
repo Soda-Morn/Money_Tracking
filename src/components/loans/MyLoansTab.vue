@@ -11,6 +11,8 @@ import MobileFAB from '../ui/MobileFAB.vue'
 import LoanCard from './LoanCard.vue'
 import LoanForm from './LoanForm.vue'
 import LoanPaymentForm from './LoanPaymentForm.vue'
+import AppIcon from '../ui/AppIcon.vue'
+import { Plus, ChevronDown, PartyPopper, Archive } from 'lucide-vue-next'
 
 const { t } = useI18n()
 const { formatCurrency } = useFormat()
@@ -115,10 +117,11 @@ const handleArchive = async (id) => {
 
     <!-- Add Loan (desktop) -->
     <button
-      class="hidden sm:block w-full py-3 rounded-xl text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 transition-colors shadow-sm"
+      class="hidden sm:flex items-center justify-center gap-1.5 w-full py-3 rounded-xl text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 transition-colors shadow-sm"
       @click="showAddModal = true"
     >
-      + {{ t('add_loan') }}
+      <AppIcon :icon="Plus" size="button" />
+      {{ t('add_loan') }}
     </button>
 
     <!-- Active Loans -->
@@ -145,20 +148,21 @@ const handleArchive = async (id) => {
     <BaseCard v-if="completedLoans.length > 0" padding="p-0">
       <button class="w-full flex items-center justify-between px-4 py-3 text-left" @click="showCompleted = !showCompleted">
         <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('completed_loans') }} ({{ completedLoans.length }})</span>
-        <svg class="w-4 h-4 text-gray-400 transition-transform duration-200" :class="showCompleted ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-        </svg>
+        <AppIcon :icon="ChevronDown" size="action" class="text-gray-400 transition-transform duration-200" :class="showCompleted ? 'rotate-180' : ''" />
       </button>
       <div v-if="showCompleted" class="divide-y divide-gray-100 dark:divide-gray-700 border-t border-gray-100 dark:border-gray-700">
         <div v-for="loan in completedLoans" :key="loan.id" class="flex items-center justify-between px-4 py-3">
           <div class="flex items-center gap-2">
-            <span class="text-lg">🎉</span>
+            <div class="w-9 h-9 shrink-0 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 flex items-center justify-center">
+              <AppIcon :icon="PartyPopper" size="button" />
+            </div>
             <div>
               <p class="text-sm font-medium text-gray-900 dark:text-white">{{ t('loan_from', { name: loan.lenderName }) }}</p>
               <p class="text-xs text-green-600 dark:text-green-400">{{ t('paid_off') }}</p>
             </div>
           </div>
-          <button class="text-xs font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200" @click="handleArchive(loan.id)">
+          <button class="inline-flex items-center gap-1 text-xs font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200" @click="handleArchive(loan.id)">
+            <AppIcon :icon="Archive" size="xs" />
             {{ t('archive') }}
           </button>
         </div>

@@ -1,6 +1,6 @@
 import { watch, nextTick } from 'vue'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
-import { db } from '../firebase'
+import { db } from '../firestore'
 import { useAuth } from './useAuth'
 import { useTheme } from './useTheme'
 import { useI18n } from 'vue-i18n'

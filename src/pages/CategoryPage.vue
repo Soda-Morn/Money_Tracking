@@ -7,6 +7,10 @@ import BaseCard from '../components/ui/BaseCard.vue'
 import BaseButton from '../components/ui/BaseButton.vue'
 import BaseInput from '../components/ui/BaseInput.vue'
 import BaseModal from '../components/ui/BaseModal.vue'
+import AppIcon from '../components/ui/AppIcon.vue'
+import IconPicker from '../components/ui/IconPicker.vue'
+import { CATEGORY_ICON_KEYS } from '../icons'
+import { ChevronLeft, ChevronDown, Plus, Trash2, TrendingDown, TrendingUp } from 'lucide-vue-next'
 
 const { t } = useI18n()
 
@@ -18,20 +22,7 @@ const expandedCategory = ref(null)
 const showAddModal = ref(false)
 const isAdding = ref(false)
 
-const addForm = ref({ label: '', icon: '📌', type: 'expense' })
-
-const emojiOptions = [
-  '🍔', '🍕', '🍜', '🍣', '🥗', '🍰', '☕', '🥤', '🍺', '🥩',
-  '🚗', '🚌', '🚲', '✈️', '🚂', '🛵', '🚕', '🛳️',
-  '🛍️', '👗', '💎', '🛒', '👟', '🕶️',
-  '📄', '🏠', '💡', '📱', '💳', '🔑',
-  '🏥', '💊', '🏃', '🧘', '💪', '🦷',
-  '🎬', '🎮', '🎵', '🎭', '🎪', '🎲',
-  '📚', '📖', '🎓', '✏️', '🔬', '🖥️',
-  '💼', '💰', '📈', '🏦', '💵', '🤝',
-  '🎯', '⭐', '🎁', '🌟', '✨', '❤️', '🔥', '🏆',
-  '🌿', '🐶', '🐱', '🎉', '🎂', '🌈', '📌', '⚡'
-]
+const addForm = ref({ label: '', icon: 'tag', type: 'expense' })
 
 const currentCategories = computed(() =>
   activeTab.value === 'expense' ? expenseCategories.value : incomeCategories.value
@@ -42,7 +33,7 @@ const toggleExpanded = (value) => {
 }
 
 const openAddModal = () => {
-  addForm.value = { label: '', icon: '📌', type: activeTab.value }
+  addForm.value = { label: '', icon: 'tag', type: activeTab.value }
   showAddModal.value = true
 }
 
@@ -70,11 +61,10 @@ const handleDelete = async (id) => {
     <div class="flex items-center gap-3">
       <button
         class="p-2 rounded-xl text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+        :aria-label="t('back')"
         @click="router.back()"
       >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-        </svg>
+        <AppIcon :icon="ChevronLeft" size="nav" />
       </button>
       <div>
         <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ t('categories') }}</h1>
@@ -98,7 +88,14 @@ const handleDelete = async (id) => {
             ]"
             @click="activeTab = tab; expandedCategory = null"
           >
-            {{ tab === 'expense' ? '💸 ' + t('expense') : '💵 ' + t('income') }}
+            <span class="inline-flex items-center justify-center gap-1.5">
+              <AppIcon
+                :icon="tab === 'expense' ? TrendingDown : TrendingUp"
+                size="action"
+                :class="tab === 'expense' ? 'text-red-500 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'"
+              />
+              {{ tab === 'expense' ? t('expense') : t('income') }}
+            </span>
           </button>
         </div>
 
@@ -107,17 +104,20 @@ const handleDelete = async (id) => {
           class="flex items-center gap-1.5 px-3 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition-colors shrink-0"
           @click="openAddModal"
         >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-          </svg>
+          <AppIcon :icon="Plus" size="action" />
           {{ t('add') }}
         </button>
       </div>
 
       <!-- Empty state -->
       <div v-if="currentCategories.length === 0" class="flex flex-col items-center justify-center py-12 px-4 text-center">
-        <div class="w-14 h-14 bg-gray-100 dark:bg-gray-700 rounded-2xl flex items-center justify-center text-3xl mb-3">
-          {{ activeTab === 'expense' ? '💸' : '💵' }}
+        <div
+          class="w-14 h-14 rounded-2xl flex items-center justify-center mb-3"
+          :class="activeTab === 'expense'
+            ? 'bg-red-50 text-red-500 dark:bg-red-900/30 dark:text-red-400'
+            : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'"
+        >
+          <AppIcon :icon="activeTab === 'expense' ? TrendingDown : TrendingUp" size="hero" />
         </div>
         <p class="text-sm font-semibold text-gray-900 dark:text-white mb-1">No categories yet</p>
         <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Tap <strong>+ Add</strong> to create your first category</p>
@@ -133,16 +133,22 @@ const handleDelete = async (id) => {
             @click="toggleExpanded(cat.value)"
           >
             <div class="flex items-center gap-3">
-              <span class="text-xl">{{ cat.icon }}</span>
+              <div
+                class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                :class="activeTab === 'expense'
+                  ? 'bg-red-50 text-red-500 dark:bg-red-900/30 dark:text-red-400'
+                  : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'"
+              >
+                <AppIcon :name="cat.icon" fallback="tag" size="button" />
+              </div>
               <span class="text-sm font-medium text-gray-900 dark:text-white">{{ cat.label }}</span>
             </div>
-            <svg
-              class="w-4 h-4 text-gray-400 transition-transform duration-200 shrink-0"
+            <AppIcon
+              :icon="ChevronDown"
+              size="action"
+              class="text-gray-400 transition-transform duration-200"
               :class="expandedCategory === cat.value ? 'rotate-180' : ''"
-              fill="none" stroke="currentColor" viewBox="0 0 24 24"
-            >
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-            </svg>
+            />
           </button>
 
           <!-- Expanded detail row -->
@@ -151,7 +157,14 @@ const handleDelete = async (id) => {
             class="px-4 py-3 bg-gray-50 dark:bg-gray-700/40 flex items-center justify-between gap-3"
           >
             <div class="flex items-center gap-3">
-              <span class="text-3xl">{{ cat.icon }}</span>
+              <div
+                class="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+                :class="activeTab === 'expense'
+                  ? 'bg-red-50 text-red-500 dark:bg-red-900/30 dark:text-red-400'
+                  : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'"
+              >
+                <AppIcon :name="cat.icon" fallback="tag" size="card" />
+              </div>
               <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ cat.label }}</p>
             </div>
 
@@ -159,9 +172,7 @@ const handleDelete = async (id) => {
               class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors shrink-0"
               @click="handleDelete(cat.id)"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
+              <AppIcon :icon="Trash2" size="action" />
               {{ t('delete') }}
             </button>
           </div>
@@ -189,7 +200,14 @@ const handleDelete = async (id) => {
             ]"
             @click="addForm.type = type"
           >
-            {{ type === 'expense' ? '💸 ' + t('expense') : '💵 ' + t('income') }}
+            <span class="inline-flex items-center justify-center gap-1.5">
+              <AppIcon
+                :icon="type === 'expense' ? TrendingDown : TrendingUp"
+                size="action"
+                :class="type === 'expense' ? 'text-red-500 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'"
+              />
+              {{ type === 'expense' ? t('expense') : t('income') }}
+            </span>
           </button>
         </div>
 
@@ -201,39 +219,22 @@ const handleDelete = async (id) => {
           :required="true"
         />
 
-        <!-- Emoji picker -->
+        <!-- Icon picker -->
         <div class="space-y-2">
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Choose Icon</label>
-          <div class="grid grid-cols-8 gap-1.5 max-h-44 overflow-y-auto p-2 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-            <button
-              v-for="emoji in emojiOptions"
-              :key="emoji"
-              type="button"
-              :class="[
-                'w-9 h-9 rounded-lg text-xl flex items-center justify-center transition-colors',
-                addForm.icon === emoji
-                  ? 'bg-primary-100 dark:bg-primary-900/60 ring-2 ring-primary-500'
-                  : 'hover:bg-gray-200 dark:hover:bg-gray-600'
-              ]"
-              @click="addForm.icon = emoji"
-            >
-              {{ emoji }}
-            </button>
-          </div>
-          <div class="flex items-center gap-3">
-            <span class="text-sm text-gray-500 dark:text-gray-400">Or type custom icon:</span>
-            <input
-              v-model="addForm.icon"
-              maxlength="2"
-              class="w-14 h-10 text-center text-2xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-              placeholder="😀"
-            />
-          </div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('icon_label') }}</label>
+          <IconPicker v-model="addForm.icon" :options="CATEGORY_ICON_KEYS" :label="t('icon_label')" />
         </div>
 
         <!-- Preview -->
         <div class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-700">
-          <span class="text-3xl">{{ addForm.icon }}</span>
+          <div
+            class="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+            :class="addForm.type === 'expense'
+              ? 'bg-red-50 text-red-500 dark:bg-red-900/30 dark:text-red-400'
+              : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'"
+          >
+            <AppIcon :name="addForm.icon" fallback="tag" size="card" />
+          </div>
           <div>
             <p class="font-medium text-gray-900 dark:text-white">{{ addForm.label || t('category_name') }}</p>
             <p class="text-xs text-gray-400 capitalize">{{ t(addForm.type) }}</p>

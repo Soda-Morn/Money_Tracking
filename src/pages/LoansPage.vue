@@ -3,6 +3,8 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import LendingTab from '../components/loans/LendingTab.vue'
 import MyLoansTab from '../components/loans/MyLoansTab.vue'
+import AppIcon from '../components/ui/AppIcon.vue'
+import { HandCoins, Landmark } from 'lucide-vue-next'
 
 const { t } = useI18n()
 const activeTab = ref('lending') // 'lending' | 'myLoans'
@@ -20,25 +22,27 @@ const activeTab = ref('lending') // 'lending' | 'myLoans'
     <div class="flex gap-1 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg max-w-md">
       <button
         :class="[
-          'flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors',
+          'flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-md text-sm font-medium transition-colors',
           activeTab === 'lending'
             ? 'bg-white dark:bg-gray-600 shadow-sm text-gray-900 dark:text-white'
             : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
         ]"
         @click="activeTab = 'lending'"
       >
-        🤝 {{ t('lending_tab') }}
+        <AppIcon :icon="HandCoins" size="action" />
+        {{ t('lending_tab') }}
       </button>
       <button
         :class="[
-          'flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors',
+          'flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-md text-sm font-medium transition-colors',
           activeTab === 'myLoans'
             ? 'bg-white dark:bg-gray-600 shadow-sm text-gray-900 dark:text-white'
             : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
         ]"
         @click="activeTab = 'myLoans'"
       >
-        💳 {{ t('my_loans_tab') }}
+        <AppIcon :icon="Landmark" size="action" />
+        {{ t('my_loans_tab') }}
       </button>
     </div>
 

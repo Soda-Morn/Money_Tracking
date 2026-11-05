@@ -4,6 +4,8 @@ import { useFormat, sortByDateDesc } from '../../composables/useFormat'
 import { useI18n } from 'vue-i18n'
 import BaseModal from '../ui/BaseModal.vue'
 import EmptyState from '../ui/EmptyState.vue'
+import AppIcon from '../ui/AppIcon.vue'
+import { Plus, Pencil, Trash2 } from 'lucide-vue-next'
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -45,10 +47,11 @@ const totals = computed(() => {
 
     <!-- Add record for this person -->
     <button
-      class="w-full mb-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 transition-colors shadow-sm"
+      class="w-full mb-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 transition-colors shadow-sm inline-flex items-center justify-center gap-1.5"
       @click="emit('addRecord', personName)"
     >
-      + {{ t('add_borrow_payback') }}
+      <AppIcon :icon="Plus" size="button" />
+      {{ t('add_borrow_payback') }}
     </button>
 
     <!-- Ledger -->
@@ -79,14 +82,10 @@ const totals = computed(() => {
             :class="tx.type === 'borrow' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'"
           >{{ formatCurrency(tx.amount) }}</span>
           <button class="p-1.5 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 rounded-lg transition-colors" :title="t('update')" @click="emit('edit', tx)">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
+            <AppIcon :icon="Pencil" size="action" />
           </button>
           <button class="p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded-lg transition-colors" :title="t('delete')" @click="emit('delete', tx.id, tx.name)">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
+            <AppIcon :icon="Trash2" size="action" />
           </button>
         </div>
       </div>

@@ -7,6 +7,8 @@ import { useFormat } from '../composables/useFormat'
 import { useCurrency } from '../composables/useCurrency'
 import { useI18n } from 'vue-i18n'
 import BaseCard from '../components/ui/BaseCard.vue'
+import AppIcon from '../components/ui/AppIcon.vue'
+import { ChevronLeft, Trash2, Target } from 'lucide-vue-next'
 
 const router = useRouter()
 const { budgets, setCategoryBudget, removeCategoryBudget, removeBudget } = useBudget()
@@ -37,7 +39,7 @@ const availableCategories = computed(() =>
 // Category limit rows for the selected month (for display)
 const categoryLimitRows = computed(() =>
   Object.entries(currentCategories.value).map(([value, limit]) => {
-    const cat = allExpenseCategories.value.find(c => c.value === value) ?? { icon: '📌', label: value }
+    const cat = allExpenseCategories.value.find(c => c.value === value) ?? { icon: 'tag', label: value }
     return { value, limit, icon: cat.icon, label: cat.label }
   })
 )
@@ -86,11 +88,10 @@ const handleRemove = async (monthKey) => {
     <div class="flex items-center gap-3">
       <button
         class="p-2 rounded-xl text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+        :aria-label="t('back')"
         @click="router.back()"
       >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-        </svg>
+        <AppIcon :icon="ChevronLeft" size="nav" />
       </button>
       <div>
         <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ t('monthly_budget') }}</h1>
@@ -123,7 +124,9 @@ const handleRemove = async (monthKey) => {
           class="flex items-center justify-between px-4 py-3"
         >
           <div class="flex items-center gap-2.5">
-            <span class="text-xl leading-none">{{ row.icon }}</span>
+            <div class="w-9 h-9 rounded-xl bg-red-50 text-red-500 dark:bg-red-900/30 dark:text-red-400 flex items-center justify-center shrink-0">
+              <AppIcon :name="row.icon" fallback="tag" size="button" />
+            </div>
             <div>
               <p class="text-sm font-medium text-gray-900 dark:text-white">{{ row.label }}</p>
               <p class="text-xs text-primary-600 dark:text-primary-400 font-medium mt-0.5">
@@ -134,11 +137,10 @@ const handleRemove = async (monthKey) => {
           <button
             class="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
             :title="t('delete')"
+            :aria-label="t('delete')"
             @click="handleRemoveCategoryLimit(row.value)"
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
+            <AppIcon :icon="Trash2" size="action" />
           </button>
         </div>
       </div>
@@ -159,7 +161,7 @@ const handleRemove = async (monthKey) => {
           >
             <option value="">{{ t('select_category') }}</option>
             <option v-for="cat in availableCategories" :key="cat.value" :value="cat.value">
-              {{ cat.icon }} {{ cat.label }}
+              {{ cat.label }}
             </option>
           </select>
           <input
@@ -206,11 +208,10 @@ const handleRemove = async (monthKey) => {
           <button
             class="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
             :title="t('delete')"
+            :aria-label="t('delete')"
             @click="handleRemove(item.monthKey)"
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
+            <AppIcon :icon="Trash2" size="action" />
           </button>
         </div>
       </div>
@@ -219,8 +220,8 @@ const handleRemove = async (monthKey) => {
     <!-- Empty state -->
     <BaseCard v-else>
       <div class="flex flex-col items-center justify-center py-8 text-center">
-        <div class="w-14 h-14 bg-tertiary-50 dark:bg-tertiary-900/30 rounded-2xl flex items-center justify-center text-3xl mb-3">
-          💸
+        <div class="w-14 h-14 bg-tertiary-50 dark:bg-tertiary-900/30 rounded-2xl flex items-center justify-center text-tertiary-600 dark:text-tertiary-400 mb-3">
+          <AppIcon :icon="Target" size="hero" />
         </div>
         <p class="text-sm font-semibold text-gray-900 dark:text-white mb-1">{{ t('no_budgets_title') }}</p>
         <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('no_budgets_desc') }}</p>

@@ -10,6 +10,8 @@ import PersonLedgerModal from '../transactions/PersonLedgerModal.vue'
 import EmptyState from '../ui/EmptyState.vue'
 import MobileFAB from '../ui/MobileFAB.vue'
 import { useToast } from '../../composables/useToast'
+import AppIcon from '../ui/AppIcon.vue'
+import { Plus, Search, X, UsersRound, Trash2 } from 'lucide-vue-next'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -162,17 +164,16 @@ const cancelDelete = () => {
 
     <!-- Add Record -->
     <button
-      class="hidden sm:block w-full py-3 rounded-xl text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 transition-colors shadow-sm"
+      class="hidden sm:flex items-center justify-center gap-1.5 w-full py-3 rounded-xl text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 transition-colors shadow-sm"
       @click="openAddModal()"
     >
-      + {{ t('add_borrow_payback') }}
+      <AppIcon :icon="Plus" size="button" />
+      {{ t('add_borrow_payback') }}
     </button>
 
     <!-- Name Filter -->
     <div v-if="personSummary.length > 0" class="relative max-w-xs">
-      <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
-      </svg>
+      <AppIcon :icon="Search" size="action" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
       <input
         v-model="filterName"
         type="text"
@@ -182,11 +183,10 @@ const cancelDelete = () => {
       <button
         v-if="filterName"
         class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+        :aria-label="t('clear_all')"
         @click="filterName = ''"
       >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-        </svg>
+        <AppIcon :icon="X" size="action" />
       </button>
     </div>
 
@@ -195,9 +195,7 @@ const cancelDelete = () => {
       <div class="flex items-center justify-between gap-2 px-4 py-3 border-b border-gray-100 dark:border-gray-700">
         <div class="flex items-center gap-2 min-w-0">
           <div class="w-8 h-8 bg-primary-100 dark:bg-primary-900/40 rounded-xl flex items-center justify-center shrink-0">
-            <svg class="w-4 h-4 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
+            <AppIcon :icon="UsersRound" size="action" class="text-primary-600 dark:text-primary-400" />
           </div>
           <span class="text-sm font-semibold text-gray-900 dark:text-white shrink-0">{{ t('active_balances') }}</span>
           <span class="text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full shrink-0">{{ filteredPersonSummary.length }}</span>
@@ -280,7 +278,7 @@ const cancelDelete = () => {
           class="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
           @click.self="cancelDelete"
         >
-          <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+          <div class="absolute inset-0 bg-black/45 sm:bg-black/40 sm:backdrop-blur-sm" />
           <Transition
             enter-active-class="transition duration-200 ease-out"
             enter-from-class="translate-y-4 opacity-0 sm:scale-95"
@@ -296,10 +294,7 @@ const cancelDelete = () => {
               <div class="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto mb-5 sm:hidden" />
               <div class="flex items-center justify-center mb-4">
                 <div class="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center">
-                  <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
+                  <AppIcon :icon="Trash2" :size="32" class="text-red-500" />
                 </div>
               </div>
               <h3 class="text-lg font-bold text-center text-gray-900 dark:text-white mb-1">

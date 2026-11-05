@@ -1,13 +1,17 @@
 <script setup>
+import { CircleCheck, CircleAlert, Info, X } from 'lucide-vue-next'
 import { useToast } from '../../composables/useToast'
+import { useI18n } from 'vue-i18n'
+import AppIcon from './AppIcon.vue'
 
+const { t } = useI18n()
 const { toasts, remove } = useToast()
 
 const iconFor = (type) => ({
-  success: 'M5 13l4 4L19 7',
-  error:   'M6 18L18 6M6 6l12 12',
-  info:    'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'
-})[type] || 'M5 13l4 4L19 7'
+  success: CircleCheck,
+  error:   CircleAlert,
+  info:    Info
+})[type] || CircleCheck
 
 const colorFor = (type) => ({
   success: {
@@ -54,9 +58,7 @@ const colorFor = (type) => ({
 
           <!-- Icon -->
           <div :class="['ml-1 w-8 h-8 rounded-xl flex items-center justify-center shrink-0', colorFor(toast.type).icon]">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" :d="iconFor(toast.type)" />
-            </svg>
+            <AppIcon :icon="iconFor(toast.type)" size="action" />
           </div>
 
           <!-- Message -->
@@ -65,11 +67,10 @@ const colorFor = (type) => ({
           <!-- Close -->
           <button
             class="shrink-0 w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            :aria-label="t('close')"
             @click="remove(toast.id)"
           >
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <AppIcon :icon="X" size="xs" />
           </button>
         </div>
       </TransitionGroup>

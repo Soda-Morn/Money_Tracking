@@ -5,6 +5,8 @@ import { useFormat } from '../../composables/useFormat'
 import { useLoans } from '../../composables/useLoans'
 import BaseButton from '../ui/BaseButton.vue'
 import BaseInput from '../ui/BaseInput.vue'
+import AppIcon from '../ui/AppIcon.vue'
+import { TriangleAlert } from 'lucide-vue-next'
 
 const props = defineProps({
   loan: { type: Object, required: true },
@@ -85,7 +87,7 @@ const confirmFinalPayment = () => {
     <!-- Overpayment confirmation — replaces the normal action row -->
     <div v-if="isOverpayment" class="space-y-3">
       <div class="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
-        <span class="text-lg leading-none">⚠️</span>
+        <AppIcon :icon="TriangleAlert" size="button" class="text-amber-500" />
         <p class="text-sm text-amber-700 dark:text-amber-400">
           {{ t('overpayment_warning', { remaining: formatCurrency(remainingBefore) }) }}
         </p>

@@ -1,7 +1,9 @@
 import { ref } from 'vue'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
-import { db, auth } from '../firebase'
+import { auth } from '../firebase'
+import { db } from '../firestore'
 import { onAuthStateChanged } from 'firebase/auth'
+import { normalizeBudgets } from '../shared/finance'
 
 /**
  * Budget data shape (per month):
@@ -17,13 +19,8 @@ const budgets = ref({})
 let currentUid = null
 
 /** Promote any legacy { [key]: number } entries to the full object shape. */
-const normalize = (data) =>
-  Object.fromEntries(
-    Object.entries(data).map(([k, v]) => [
-      k,
-      typeof v === 'number' ? { total: v, categories: {} } : { total: v.total ?? 0, categories: v.categories ?? {} }
-    ])
-  )
+// Shared with the Telegram Worker (src/shared/finance.js)
+const normalize = normalizeBudgets
 
 onAuthStateChanged(auth, async (user) => {
   if (user) {
@@ -42,7 +39,12 @@ onAuthStateChanged(auth, async (user) => {
 
 async function persist() {
   if (!currentUid) return
-  await setDoc(doc(db, 'users', currentUid, 'settings', 'budgets'), budgets.value)
+  try {
+    await setDoc(doc(db, 'users', currentUid, 'settings', 'budgets'), budgets.value)
+  } catch (error) {
+    console.error('[budget] persist failed:', error)
+    throw error
+  }
 }
 
 export function useBudget() {

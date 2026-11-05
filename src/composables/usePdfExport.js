@@ -123,8 +123,8 @@ function buildPage1(opts, chunk, pageNum, totalPages) {
                 background:rgba(255,255,255,0.18);
                 border-radius:9px;
                 display:flex;align-items:center;justify-content:center;
-                font-size:16px;line-height:1;
-              ">💵</div>
+                font-size:16px;line-height:1;color:#ffffff;
+              "><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg></div>
               <span style="color:#fff;font-size:18px;font-weight:800;letter-spacing:-0.5px;">FinanceFlow</span>
             </div>
             <p style="color:#cde6dd;font-size:11.5px;margin:0;line-height:1.4;">

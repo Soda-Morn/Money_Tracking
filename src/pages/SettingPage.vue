@@ -9,7 +9,6 @@ import { useTransactions } from '../composables/useTransactions'
 import { useCategories } from '../composables/useCategories'
 import { useAuth } from '../composables/useAuth'
 import { useFormat } from '../composables/useFormat'
-import { usePdfExport } from '../composables/usePdfExport'
 import { useDataManagement } from '../composables/useDataManagement'
 import { useToast } from '../composables/useToast'
 import { useStorage } from '../composables/useStorage'
@@ -17,6 +16,11 @@ import { useStorage } from '../composables/useStorage'
 import BaseCard from '../components/ui/BaseCard.vue'
 import BaseModal from '../components/ui/BaseModal.vue'
 import BaseButton from '../components/ui/BaseButton.vue'
+import AppIcon from '../components/ui/AppIcon.vue'
+import TelegramSettings from '../components/settings/TelegramSettings.vue'
+import {
+  Tags, Target, Moon, Sun, ChevronRight, FileDown, FileSpreadsheet, Download, Upload, CircleDollarSign,
+} from 'lucide-vue-next'
 
 const router = useRouter()
 const { isDark, toggleTheme } = useTheme()
@@ -27,13 +31,13 @@ const toast = useToast()
 
 const menuItems = computed(() => [
   {
-    icon: '🏷️',
+    icon: Tags,
     label: t('categories'),
     description: t('categories_desc'),
     route: '/settings/categories'
   },
   {
-    icon: '💰',
+    icon: Target,
     label: t('monthly_budget'),
     description: t('budget_desc'),
     route: '/settings/budget'
@@ -84,7 +88,12 @@ const { transactions, totalIncome, totalExpense, totalBalance } = useTransaction
 const { getCategoryInfo } = useCategories()
 const { currentUser } = useAuth()
 const { formatCurrency } = useFormat()
-const { exportToPdf } = usePdfExport()
+// PDF libraries (jsPDF + html2canvas, ~180 kB gzip) are downloaded only when
+// the user actually exports — not every time this page opens.
+const exportToPdf = async (options) => {
+  const { usePdfExport } = await import('../composables/usePdfExport')
+  return usePdfExport().exportToPdf(options)
+}
 const { exportCsv, backupJson, restoreJson, resetAllData } = useDataManagement()
 
 const isExportingPdf = ref(false)
@@ -182,9 +191,9 @@ const confirmReset = async () => {
         <div class="flex items-center gap-3">
           <div
             class="w-10 h-10 rounded-xl flex items-center justify-center"
-            :class="isDark ? 'bg-gray-700' : 'bg-amber-100'"
+            :class="isDark ? 'bg-gray-700 text-gray-200' : 'bg-amber-100 text-amber-600'"
           >
-            <span class="text-xl">{{ isDark ? '🌙' : '☀️' }}</span>
+            <AppIcon :icon="isDark ? Moon : Sun" size="button" />
           </div>
           <div>
             <p class="text-sm font-medium text-gray-900 dark:text-white">
@@ -271,20 +280,21 @@ const confirmReset = async () => {
           @click="router.push(item.route)"
         >
           <div class="flex items-center gap-3">
-            <div class="w-9 h-9 bg-gray-100 dark:bg-gray-700 rounded-xl flex items-center justify-center text-lg shrink-0">
-              {{ item.icon }}
+            <div class="w-9 h-9 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-xl flex items-center justify-center shrink-0">
+              <AppIcon :icon="item.icon" size="button" />
             </div>
             <div>
               <p class="text-sm font-medium text-gray-900 dark:text-white">{{ item.label }}</p>
               <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{{ item.description }}</p>
             </div>
           </div>
-          <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-          </svg>
+          <AppIcon :icon="ChevronRight" size="action" class="text-gray-400" />
         </button>
       </div>
     </BaseCard>
+
+    <!-- ── Telegram bot ──────────────────────────────────────────────────── -->
+    <TelegramSettings />
 
     <!-- ── Network & Status ─────────────────────────────────────────────── -->
     <BaseCard padding="p-0">
@@ -345,27 +355,21 @@ const confirmReset = async () => {
           class="flex flex-col items-center gap-2 py-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors disabled:opacity-50"
           @click="handleExportPdf"
         >
-          <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
+          <AppIcon :icon="FileDown" size="nav" class="text-red-500" />
           <span class="text-xs font-medium text-gray-700 dark:text-gray-300">{{ isExportingPdf ? t('exporting') : t('export_pdf') }}</span>
         </button>
         <button
           class="flex flex-col items-center gap-2 py-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
           @click="handleExportCsv"
         >
-          <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2a4 4 0 014-4h4m0 0l-3-3m3 3l-3 3M4 7v10a2 2 0 002 2h12a2 2 0 002-2V9a2 2 0 00-2-2h-6L9 4H6a2 2 0 00-2 2z" />
-          </svg>
+          <AppIcon :icon="FileSpreadsheet" size="nav" class="text-green-600" />
           <span class="text-xs font-medium text-gray-700 dark:text-gray-300">{{ t('export_csv') }}</span>
         </button>
         <button
           class="flex flex-col items-center gap-2 py-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
           @click="handleBackupJson"
         >
-          <svg class="w-5 h-5 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-          </svg>
+          <AppIcon :icon="Download" size="nav" class="text-primary-600 dark:text-primary-400" />
           <span class="text-xs font-medium text-gray-700 dark:text-gray-300">{{ t('backup_json') }}</span>
         </button>
         <button
@@ -373,9 +377,7 @@ const confirmReset = async () => {
           class="flex flex-col items-center gap-2 py-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors disabled:opacity-50"
           @click="triggerImport"
         >
-          <svg class="w-5 h-5 text-tertiary-600 dark:text-tertiary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-          </svg>
+          <AppIcon :icon="Upload" size="nav" class="text-tertiary-600 dark:text-tertiary-400" />
           <span class="text-xs font-medium text-gray-700 dark:text-gray-300">{{ isImporting ? t('importing') : t('import_json') }}</span>
         </button>
       </div>
@@ -425,9 +427,7 @@ const confirmReset = async () => {
     <div class="flex flex-col items-center gap-1 pt-2 pb-1 select-none">
       <div class="flex items-center gap-2">
         <div class="w-6 h-6 bg-gradient-to-br from-primary-500 to-secondary-600 rounded-lg flex items-center justify-center shadow-sm shrink-0">
-          <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+          <AppIcon :icon="CircleDollarSign" size="xs" class="text-white" />
         </div>
         <span class="text-sm font-bold text-gray-900 dark:text-white tracking-tight">FinanceFlow</span>
       </div>

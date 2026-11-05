@@ -41,6 +41,16 @@ const routes = [
     component: () => import('../pages/LoanDetailPage.vue')
   },
   {
+    path: '/planner',
+    name: 'Planner',
+    component: () => import('../pages/PlannerPage.vue')
+  },
+  {
+    path: '/more',
+    name: 'More',
+    component: () => import('../pages/MorePage.vue')
+  },
+  {
     path: '/borrow',
     redirect: '/loans'
   },
@@ -64,6 +74,25 @@ const routes = [
     redirect: '/'
   }
 ]
+
+/**
+ * After login, download the main tabs' code while the browser is idle, so the
+ * first tap on Transactions / Reports / More opens instantly instead of
+ * waiting for a network request. Skipped on Data Saver or 2G connections.
+ */
+const PREFETCH = ['Home', 'Activity', 'Analytics', 'More']
+let prefetched = false
+export function prefetchMainRoutes() {
+  if (prefetched || typeof window === 'undefined') return
+  const conn = navigator.connection
+  if (conn?.saveData || /2g/.test(conn?.effectiveType || '')) return
+  prefetched = true
+  const run = () => routes
+    .filter((r) => PREFETCH.includes(r.name) && typeof r.component === 'function')
+    .forEach((r) => r.component().catch(() => { prefetched = false }))
+  if ('requestIdleCallback' in window) window.requestIdleCallback(run, { timeout: 4000 })
+  else setTimeout(run, 2000)
+}
 
 const router = createRouter({
   history: createWebHistory(),

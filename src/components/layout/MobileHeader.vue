@@ -3,21 +3,24 @@ import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '../../composables/useAuth'
 import { useI18n } from 'vue-i18n'
+import { Wallet, LogOut, Settings } from 'lucide-vue-next'
+import AppIcon from '../ui/AppIcon.vue'
 
 const route = useRoute()
 const router = useRouter()
 const { currentUser, logout } = useAuth()
 const { t } = useI18n()
-
 const showMenu = ref(false)
 
 const pageTitle = computed(() => {
   if (route.path.startsWith('/loans/')) return t('loan_details_title')
   const titles = {
     '/':                  t('pages.dashboard'),
-    '/activity':          t('pages.activity'),
+    '/activity':          t('nav.transactions'),
     '/savings':           t('pages.savings'),
-    '/analytics':         t('pages.analytics'),
+    '/analytics':         t('nav.reports'),
+    '/more':              t('nav.more'),
+    '/planner':           t('planner.title'),
     '/settings':          t('pages.settings'),
     '/settings/categories': t('pages.categories'),
     '/settings/budget':     t('pages.budget'),
@@ -39,72 +42,58 @@ const handleLogout = async () => {
 </script>
 
 <template>
-  <!-- Mobile Header -->
-  <header class="lg:hidden sticky top-0 z-40 bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border-b border-gray-200/60 dark:border-gray-800/60">
-    <div class="flex items-center justify-between h-14 px-4">
-      <!-- Left: logo + page title -->
-      <div class="flex items-center gap-2.5">
-        <div class="w-7 h-7 bg-gradient-to-br from-primary-500 to-secondary-600 rounded-xl flex items-center justify-center shrink-0 shadow-md shadow-primary-500/20">
-          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+  <header class="lg:hidden sticky top-0 z-30 bg-[#f5f7f7]/95 dark:bg-[#0a1613]/95 header-safe-top">
+    <div class="flex items-center justify-between h-14 pl-4 pr-2">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div class="w-8 h-8 bg-primary-600 rounded-xl flex items-center justify-center shrink-0">
+          <AppIcon :icon="Wallet" size="action" class="text-white" />
         </div>
-        <span class="text-base font-bold text-gray-900 dark:text-white tracking-tight">{{ pageTitle }}</span>
+        <h1 class="text-[17px] font-bold text-gray-900 dark:text-white tracking-tight truncate">{{ pageTitle }}</h1>
       </div>
 
-      <!-- Right: settings + user avatar -->
-      <div class="flex items-center gap-1.5">
-        <router-link
-          to="/settings"
-          class="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-95 transition-all"
-          :title="t('settings')"
-        >
-          <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-        </router-link>
-        <button
-          class="w-8 h-8 bg-gradient-to-br from-primary-500 to-secondary-600 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md shadow-primary-500/20 active:scale-95 transition-transform"
-          @click="showMenu = !showMenu"
-        >
+      <!-- Account menu (44px tap target) -->
+      <button
+        type="button"
+        class="w-11 h-11 flex items-center justify-center rounded-full"
+        :aria-label="t('account')"
+        :aria-expanded="showMenu ? 'true' : 'false'"
+        aria-haspopup="menu"
+        @click="showMenu = !showMenu"
+      >
+        <span class="pressable w-9 h-9 bg-primary-700 rounded-full flex items-center justify-center text-white text-xs font-bold">
           {{ userInitials }}
-        </button>
-      </div>
+        </span>
+      </button>
     </div>
 
-    <!-- User dropdown menu -->
     <Transition name="menu">
-      <div
-        v-if="showMenu"
-        class="absolute top-14 left-0 right-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-b border-gray-100 dark:border-gray-800 shadow-xl z-50"
-      >
-        <!-- Backdrop -->
+      <div v-if="showMenu" class="absolute top-full inset-x-0 px-3 pt-1 z-50">
         <div class="fixed inset-0 -z-10" @click="showMenu = false"></div>
-
-        <div class="px-4 py-3">
-          <!-- User info -->
-          <div class="flex items-center gap-3 mb-3 p-3 bg-gray-50 dark:bg-gray-800/60 rounded-2xl">
-            <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-secondary-600 rounded-xl flex items-center justify-center text-white text-sm font-bold shrink-0 shadow-md shadow-primary-500/20">
+        <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-xl shadow-black/10 border border-gray-100 dark:border-gray-800 p-2" role="menu">
+          <div class="flex items-center gap-3 p-3">
+            <div class="w-10 h-10 bg-primary-700 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0">
               {{ userInitials }}
             </div>
             <div class="min-w-0">
-              <p class="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                {{ currentUser?.displayName || t('user') }}
-              </p>
+              <p class="text-sm font-semibold text-gray-900 dark:text-white truncate">{{ currentUser?.displayName || t('user') }}</p>
               <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ currentUser?.email }}</p>
             </div>
           </div>
-
-          <!-- Sign out button -->
+          <router-link
+            to="/settings"
+            role="menuitem"
+            class="w-full flex items-center gap-3 px-3 h-11 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl transition-colors text-sm font-medium"
+            @click="showMenu = false"
+          >
+            <AppIcon :icon="Settings" size="action" class="text-gray-400" />{{ t('settings') }}
+          </router-link>
           <button
-            class="w-full flex items-center gap-2.5 px-3 py-2.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 active:bg-red-100 dark:active:bg-red-900/30 rounded-xl transition-colors text-sm font-medium"
+            type="button"
+            role="menuitem"
+            class="w-full flex items-center gap-3 px-3 h-11 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors text-sm font-medium"
             @click="handleLogout"
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-            {{ t('sign_out') }}
+            <AppIcon :icon="LogOut" size="action" />{{ t('sign_out') }}
           </button>
         </div>
       </div>
@@ -113,13 +102,18 @@ const handleLogout = async () => {
 </template>
 
 <style scoped>
+.header-safe-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
 .menu-enter-active,
 .menu-leave-active {
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transition: opacity 0.15s ease, transform 0.18s var(--ease-out);
 }
+
 .menu-enter-from,
 .menu-leave-to {
   opacity: 0;
-  transform: translateY(-8px);
+  transform: translateY(-6px);
 }
 </style>

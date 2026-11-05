@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue'
-import { db, auth } from '../firebase'
+import { auth } from '../firebase'
+import { db } from '../firestore'
 import { onAuthStateChanged } from 'firebase/auth'
 import {
   collection, onSnapshot, addDoc, updateDoc,
@@ -12,13 +13,12 @@ const loading = ref(true)
 let _unsubscribe = null
 
 // Re-initialize the Firestore listener on every auth state change.
-// This ensures data is cleared when a user logs out and reloaded for the new user.
+// Data is only cleared on logout — not before the new listener connects — to prevent blank screens.
 onAuthStateChanged(auth, (user) => {
   if (_unsubscribe) {
     _unsubscribe()
     _unsubscribe = null
   }
-  goals.value = []
 
   if (user) {
     loading.value = true
@@ -26,11 +26,18 @@ onAuthStateChanged(auth, (user) => {
       collection(db, 'users', user.uid, 'goals'),
       orderBy('createdAt', 'desc')
     )
-    _unsubscribe = onSnapshot(q, (snapshot) => {
+    _unsubscribe = onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
+      // Empty on-device cache (first visit) ≠ "no goals": wait for the server
+      if (snapshot.metadata.fromCache && snapshot.empty && navigator.onLine) return
+      if (!loading.value && snapshot.docChanges().length === 0) return // metadata-only
       goals.value = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
+      loading.value = false
+    }, (error) => {
+      console.error('[goals] listener error:', error)
       loading.value = false
     })
   } else {
+    goals.value = []
     loading.value = false
   }
 })
@@ -40,27 +47,55 @@ export function useSavingsGoals() {
   const uid = () => auth.currentUser?.uid
 
   const addGoal = async (goal) => {
-    await addDoc(collection(db, 'users', uid(), 'goals'), {
-      ...goal,
-      currentAmount: goal.currentAmount || 0,
-      createdAt: new Date().toISOString()
-    })
+    const currentUid = uid()
+    if (!currentUid) throw new Error('Not authenticated')
+    try {
+      await addDoc(collection(db, 'users', currentUid, 'goals'), {
+        ...goal,
+        currentAmount: goal.currentAmount || 0,
+        createdAt: new Date().toISOString()
+      })
+    } catch (error) {
+      console.error('[goals] addGoal failed:', error)
+      throw error
+    }
   }
 
   const updateGoal = async (id, updates) => {
-    await updateDoc(doc(db, 'users', uid(), 'goals', id), updates)
+    const currentUid = uid()
+    if (!currentUid) throw new Error('Not authenticated')
+    try {
+      await updateDoc(doc(db, 'users', currentUid, 'goals', id), updates)
+    } catch (error) {
+      console.error('[goals] updateGoal failed:', error)
+      throw error
+    }
   }
 
   const deleteGoal = async (id) => {
-    await deleteDoc(doc(db, 'users', uid(), 'goals', id))
+    const currentUid = uid()
+    if (!currentUid) throw new Error('Not authenticated')
+    try {
+      await deleteDoc(doc(db, 'users', currentUid, 'goals', id))
+    } catch (error) {
+      console.error('[goals] deleteGoal failed:', error)
+      throw error
+    }
   }
 
   const addToGoal = async (id, amount) => {
+    const currentUid = uid()
+    if (!currentUid) throw new Error('Not authenticated')
     const goal = goals.value.find(g => g.id === id)
     if (goal) {
-      await updateDoc(doc(db, 'users', uid(), 'goals', id), {
-        currentAmount: Number(goal.currentAmount) + Number(amount)
-      })
+      try {
+        await updateDoc(doc(db, 'users', currentUid, 'goals', id), {
+          currentAmount: Number(goal.currentAmount) + Number(amount)
+        })
+      } catch (error) {
+        console.error('[goals] addToGoal failed:', error)
+        throw error
+      }
     }
   }
 

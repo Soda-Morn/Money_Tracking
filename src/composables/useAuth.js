@@ -12,11 +12,20 @@ import {
 const currentUser = ref(null)
 const authLoading = ref(true)
 
+// A plain "probably signed in" hint (no token, no user data) so App.vue can
+// start downloading the signed-in shell in parallel with Firebase restoring
+// the session, instead of after it.
+export const SIGNED_IN_HINT = 'ff:signedIn'
+
 onAuthStateChanged(auth, (user) => {
   currentUser.value = user
     ? { uid: user.uid, email: user.email, displayName: user.displayName }
     : null
   authLoading.value = false
+  try {
+    if (user) localStorage.setItem(SIGNED_IN_HINT, '1')
+    else localStorage.removeItem(SIGNED_IN_HINT)
+  } catch { /* storage unavailable — the hint is only an optimisation */ }
 })
 
 // ── Error message mapping ──────────────────────────────────────────────────────
@@ -69,6 +78,20 @@ export function useAuth() {
 
   const logout = async () => {
     await signOut(auth)
+    // Privacy on shared devices: remove this user's cached financial data
+    // from the browser, then reload so every listener starts clean.
+    try {
+      // Loaded on demand so the login page never downloads the Firestore SDK
+      const [{ terminate, clearIndexedDbPersistence }, { db }] = await Promise.all([
+        import('firebase/firestore'),
+        import('../firestore'),
+      ])
+      await terminate(db)
+      await clearIndexedDbPersistence(db)
+    } catch (e) {
+      console.warn('[auth] could not clear offline cache:', e?.code || e)
+    }
+    window.location.replace('/login')
   }
 
   return { currentUser, authLoading, error, loading, register, login, logout }

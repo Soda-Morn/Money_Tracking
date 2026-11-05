@@ -3,22 +3,53 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '../../composables/useAuth'
 import { useI18n } from 'vue-i18n'
+import {
+  House, ArrowLeftRight, ChartPie, PiggyBank, HandCoins, Target, Tags, CalendarClock,
+  Settings, LogOut, Wallet, Plus,
+} from 'lucide-vue-next'
+import AppIcon from '../ui/AppIcon.vue'
+import { useQuickAdd } from '../../composables/useQuickAdd'
 
 const route = useRoute()
 const router = useRouter()
 const { currentUser, logout } = useAuth()
 const { t } = useI18n()
+const { open: openQuickAdd } = useQuickAdd()
 
-const navItems = computed(() => [
-  { name: t('nav.home'),      path: '/',          icon: 'dashboard' },
-  { name: t('nav.activity'),  path: '/activity',  icon: 'activity'  },
-  { name: t('nav.savings'),   path: '/savings',   icon: 'savings'   },
-  { name: t('nav.borrow'),    path: '/loans',     icon: 'loans'     },
-  { name: t('nav.analytics'), path: '/analytics', icon: 'chart'     },
+// Same destinations as the mobile bottom bar + "More" page, grouped for scanning.
+const sections = computed(() => [
+  {
+    title: t('nav.section_overview'),
+    items: [
+      { name: t('nav.home'), path: '/', icon: House },
+      { name: t('nav.transactions'), path: '/activity', icon: ArrowLeftRight },
+      { name: t('nav.reports'), path: '/analytics', icon: ChartPie },
+    ],
+  },
+  {
+    title: t('nav.section_money'),
+    items: [
+      { name: t('nav.planner'), path: '/planner', icon: CalendarClock },
+      { name: t('nav.savings'), path: '/savings', icon: PiggyBank },
+      { name: t('nav.borrow'), path: '/loans', icon: HandCoins },
+      { name: t('nav.budgets'), path: '/settings/budget', icon: Target },
+    ],
+  },
+  {
+    title: t('nav.section_manage'),
+    items: [
+      { name: t('nav.categories'), path: '/settings/categories', icon: Tags },
+      { name: t('nav.settings'), path: '/settings', icon: Settings, exact: true },
+    ],
+  },
 ])
 
-// Also match nested routes (e.g. /loans/:id should keep the Loans tab active)
-const isActive = (path) => route.path === path || route.path.startsWith(path + '/')
+// Nested routes keep their parent active (/loans/:id → Loans). Settings is
+// exact so it doesn't light up alongside Budgets/Categories.
+const isActive = (item) => {
+  if (item.path === '/' || item.exact) return route.path === item.path
+  return route.path === item.path || route.path.startsWith(item.path + '/')
+}
 
 const userInitials = computed(() => {
   const name = currentUser.value?.displayName || currentUser.value?.email || '?'
@@ -32,116 +63,77 @@ const handleLogout = async () => {
 </script>
 
 <template>
-  <!-- Desktop Sidebar Navigation -->
-  <aside class="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-[#0a1613] text-white overflow-hidden">
-
-    <!-- Subtle gradient overlay -->
-    <div class="absolute inset-0 bg-gradient-to-b from-primary-900/10 via-transparent to-secondary-900/10 pointer-events-none"></div>
-
-    <!-- Logo -->
-    <div class="relative flex items-center h-16 px-5 border-b border-white/5">
-      <div class="flex items-center gap-3">
-        <div class="w-9 h-9 bg-gradient-to-br from-primary-500 to-secondary-600 rounded-2xl flex items-center justify-center shadow-lg shadow-primary-500/30 shrink-0">
-          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </div>
-        <div>
-          <span class="text-sm font-bold tracking-tight text-white leading-none">Finance</span>
-          <span class="text-sm font-bold tracking-tight text-primary-400 leading-none">Flow</span>
-        </div>
+  <aside class="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-[#0b1714] text-white z-30" :aria-label="t('main_navigation')">
+    <!-- Brand -->
+    <div class="flex items-center gap-3 h-16 px-5">
+      <div class="w-9 h-9 bg-primary-600 rounded-xl flex items-center justify-center shrink-0">
+        <AppIcon :icon="Wallet" size="nav" class="text-white" />
       </div>
+      <span class="text-[15px] font-bold tracking-tight">Finance<span class="text-primary-400">Flow</span></span>
     </div>
 
-    <!-- Navigation Links -->
-    <nav class="relative flex-1 px-3 py-5 space-y-0.5 overflow-y-auto">
-      <router-link
-        v-for="item in navItems"
-        :key="item.path"
-        :to="item.path"
-        :class="[
-          'flex items-center px-3 py-2.5 rounded-xl transition-all duration-200 font-medium text-sm group relative',
-          isActive(item.path)
-            ? 'bg-gradient-to-r from-primary-600 to-secondary-600 text-white shadow-lg shadow-primary-600/30'
-            : 'text-gray-400 hover:bg-white/6 hover:text-white'
-        ]"
+    <!-- Primary action -->
+    <div class="px-3 pb-2">
+      <button
+        type="button"
+        class="pressable w-full h-11 flex items-center justify-center gap-2 rounded-xl bg-primary-600 hover:bg-primary-500 text-sm font-semibold text-white shadow-lg shadow-black/20"
+        @click="openQuickAdd('expense')"
       >
-        <!-- Active left glow -->
-        <span
-          v-if="isActive(item.path)"
-          class="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-white/60 rounded-r-full"
-        ></span>
+        <AppIcon :icon="Plus" size="button" />{{ t('add_transaction') }}
+      </button>
+    </div>
 
-        <!-- Dashboard -->
-        <svg v-if="item.icon === 'dashboard'" class="w-5 h-5 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <rect x="3.5" y="3.5" width="7" height="7" rx="1.5" stroke-width="2" />
-          <rect x="13.5" y="3.5" width="7" height="7" rx="1.5" stroke-width="2" />
-          <rect x="3.5" y="13.5" width="7" height="7" rx="1.5" stroke-width="2" />
-          <rect x="13.5" y="13.5" width="7" height="7" rx="1.5" stroke-width="2" />
-        </svg>
-        <!-- Activity -->
-        <svg v-else-if="item.icon === 'activity'" class="w-5 h-5 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12h4l2.5 7 4-14 2.5 7H21" />
-        </svg>
-        <!-- Savings -->
-        <svg v-else-if="item.icon === 'savings'" class="w-5 h-5 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-        </svg>
-        <!-- Chart -->
-        <svg v-else-if="item.icon === 'chart'" class="w-5 h-5 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-        </svg>
-        <!-- Loans -->
-        <svg v-else-if="item.icon === 'loans'" class="w-5 h-5 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-        </svg>
-
-        <span>{{ item.name }}</span>
-      </router-link>
-    </nav>
-
-    <!-- User card + Sign out -->
-    <div class="relative p-3 border-t border-white/5">
-      <!-- Glass user card -->
-      <div class="bg-white/5 border border-white/8 rounded-2xl p-3 mb-2 backdrop-blur-sm">
-        <div class="flex items-center gap-3 min-w-0">
-          <div class="w-9 h-9 bg-gradient-to-br from-primary-500 to-secondary-600 rounded-xl flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-md shadow-primary-500/20">
-            {{ userInitials }}
-          </div>
-          <div class="min-w-0 flex-1">
-            <p class="text-sm font-semibold text-white truncate leading-tight">
-              {{ currentUser?.displayName || t('user') }}
-            </p>
-            <p class="text-xs text-gray-500 truncate mt-0.5">{{ currentUser?.email }}</p>
-          </div>
+    <!-- Navigation -->
+    <nav class="flex-1 overflow-y-auto px-3 py-3 space-y-5">
+      <div v-for="section in sections" :key="section.title">
+        <p class="px-3 mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500">{{ section.title }}</p>
+        <div class="space-y-0.5">
           <router-link
-            to="/settings"
+            v-for="item in section.items"
+            :key="item.path"
+            :to="item.path"
+            :aria-current="isActive(item) ? 'page' : undefined"
             :class="[
-              'p-2 rounded-lg transition-colors shrink-0',
-              route.path.startsWith('/settings') ? 'bg-white/15 text-white' : 'text-gray-500 hover:text-white hover:bg-white/10'
+              'relative flex items-center gap-3 h-10 px-3 rounded-xl text-sm font-medium transition-colors duration-200',
+              isActive(item)
+                ? 'bg-white/10 text-white'
+                : 'text-gray-400 hover:bg-white/5 hover:text-white'
             ]"
-            :title="t('settings')"
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
+            <span
+              class="absolute left-0 top-1/2 -translate-y-1/2 w-1 rounded-r-full bg-primary-400 transition-all duration-200"
+              :class="isActive(item) ? 'h-5 opacity-100' : 'h-0 opacity-0'"
+            />
+            <AppIcon :icon="item.icon" size="nav" :class="isActive(item) ? 'text-primary-300' : ''" />
+            <span class="truncate">{{ item.name }}</span>
           </router-link>
         </div>
       </div>
+    </nav>
 
-      <button
-        class="w-full flex items-center gap-2.5 px-3 py-2.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 active:bg-red-500/20 rounded-xl transition-all duration-200 text-sm font-medium"
-        @click="handleLogout"
-      >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-        </svg>
-        {{ t('sign_out') }}
-      </button>
-
-      <!-- Credit -->
-      <p class="text-center text-[10px] text-gray-600 mt-2 tracking-wide select-none">
+    <!-- Account -->
+    <div class="p-3 border-t border-white/5">
+      <div class="flex items-center gap-3 min-w-0 px-2 py-2">
+        <div class="w-9 h-9 bg-primary-700 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0">
+          {{ userInitials }}
+        </div>
+        <div class="min-w-0 flex-1">
+          <p class="text-sm font-semibold text-white truncate leading-tight">
+            {{ currentUser?.displayName || t('user') }}
+          </p>
+          <p class="text-xs text-gray-500 truncate mt-0.5">{{ currentUser?.email }}</p>
+        </div>
+        <button
+          type="button"
+          class="w-9 h-9 flex items-center justify-center rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0"
+          :title="t('sign_out')"
+          :aria-label="t('sign_out')"
+          @click="handleLogout"
+        >
+          <AppIcon :icon="LogOut" size="action" />
+        </button>
+      </div>
+      <p class="text-center text-[10px] text-gray-600 mt-1 tracking-wide select-none">
         Made by <span class="text-primary-400 font-semibold">Soda MORN</span>
       </p>
     </div>

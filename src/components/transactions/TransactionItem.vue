@@ -1,8 +1,10 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useFormat } from '../../composables/useFormat'
 import { useCategories } from '../../composables/useCategories'
+import { Ellipsis, Eye, Pencil, Trash2 } from 'lucide-vue-next'
+import AppIcon from '../ui/AppIcon.vue'
 
 const props = defineProps({
   transaction: {
@@ -36,19 +38,20 @@ const onDocKeydown = (event) => {
   if (event.key === 'Escape') closeMenu()
 }
 
-onMounted(() => {
-  document.addEventListener('click', onDocClick)
-  document.addEventListener('keydown', onDocKeydown)
-})
-
-onBeforeUnmount(() => {
-  document.removeEventListener('click', onDocClick)
-  document.removeEventListener('keydown', onDocKeydown)
-})
+// Listen for outside clicks / Escape only while THIS menu is open. Previously
+// every row kept two document listeners for its whole life, so each click
+// anywhere ran one handler per visible row.
+const listen = (on) => {
+  const fn = on ? 'addEventListener' : 'removeEventListener'
+  document[fn]('click', onDocClick)
+  document[fn]('keydown', onDocKeydown)
+}
+watch(menuOpen, (open) => listen(open))
+onBeforeUnmount(() => listen(false))
 </script>
 
 <template>
-  <div class="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800/60 active:bg-gray-100 dark:active:bg-gray-800 transition-colors group">
+  <div class="flex items-center gap-3 py-2 pl-3 pr-2 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800/60 active:bg-gray-100 dark:active:bg-gray-800 transition-colors group">
     <!-- Category Icon -->
     <div :class="[
       'w-10 h-10 shrink-0 rounded-xl flex items-center justify-center text-lg shadow-sm',
@@ -60,7 +63,18 @@ onBeforeUnmount(() => {
             ? 'bg-tertiary-100 dark:bg-tertiary-900/30'
             : 'bg-red-100 dark:bg-red-900/30'
     ]">
-      {{ categoryInfo.icon }}
+      <AppIcon
+        :name="categoryInfo.icon"
+        fallback="tag"
+        size="button"
+        :class="transaction.type === 'income'
+          ? 'text-emerald-600 dark:text-emerald-400'
+          : transaction.type === 'borrow'
+            ? 'text-primary-600 dark:text-primary-400'
+            : transaction.type === 'payback'
+              ? 'text-tertiary-600 dark:text-tertiary-400'
+              : 'text-red-500 dark:text-red-400'"
+      />
     </div>
 
     <!-- Details -->
@@ -74,9 +88,9 @@ onBeforeUnmount(() => {
     </div>
 
     <!-- Amount & Menu -->
-    <div class="shrink-0 flex items-center gap-1">
+    <div class="shrink-0 flex items-center gap-0.5">
       <span :class="[
-        'font-bold text-sm tabular-nums',
+        'font-bold text-sm tabular whitespace-nowrap',
         transaction.type === 'income'  ? 'text-emerald-600 dark:text-emerald-400' :
         transaction.type === 'borrow'  ? 'text-primary-600 dark:text-primary-400' :
         transaction.type === 'payback' ? 'text-tertiary-600 dark:text-tertiary-400' :
@@ -87,14 +101,14 @@ onBeforeUnmount(() => {
 
       <div ref="menuRef" class="relative">
         <button
-          class="p-1.5 text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+          class="w-11 h-11 flex items-center justify-center text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-[opacity,color,background-color] duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 lg:opacity-0 lg:group-hover:opacity-100 lg:focus:opacity-100"
+          :class="menuOpen ? 'lg:opacity-100 bg-gray-100 dark:bg-gray-700' : ''"
           :aria-expanded="menuOpen ? 'true' : 'false'"
           aria-haspopup="menu"
+          :aria-label="t('more_actions')"
           @click.stop="toggleMenu"
         >
-          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
-            <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zm8 0a2 2 0 11-4 0 2 2 0 014 0zm6 0a2 2 0 11-4 0 2 2 0 014 0z" />
-          </svg>
+          <AppIcon :icon="Ellipsis" size="action" />
         </button>
 
         <Transition
@@ -107,39 +121,32 @@ onBeforeUnmount(() => {
         >
           <div
             v-if="menuOpen"
-            class="absolute right-0 mt-1.5 w-44 rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-xl shadow-black/10 dark:shadow-black/30 overflow-hidden z-10"
+            class="absolute right-0 mt-1 w-48 py-1 rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-xl shadow-black/10 dark:shadow-black/30 overflow-hidden z-10"
             role="menu"
           >
             <button
-              class="w-full px-3.5 py-2.5 flex items-center gap-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              class="w-full min-h-11 px-3.5 py-2.5 flex items-center gap-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
               role="menuitem"
               @click="closeMenu(); emit('view', transaction)"
             >
-              <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
+              <AppIcon :icon="Eye" size="action" class="text-gray-400" />
               {{ t('view') }}
             </button>
             <button
-              class="w-full px-3.5 py-2.5 flex items-center gap-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              class="w-full min-h-11 px-3.5 py-2.5 flex items-center gap-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
               role="menuitem"
               @click="closeMenu(); emit('edit', transaction)"
             >
-              <svg class="w-4 h-4 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
+              <AppIcon :icon="Pencil" size="action" class="text-primary-400" />
               {{ t('edit_transaction') }}
             </button>
             <div class="h-px bg-gray-100 dark:bg-gray-800 mx-2"></div>
             <button
-              class="w-full px-3.5 py-2.5 flex items-center gap-2.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+              class="w-full min-h-11 px-3.5 py-2.5 flex items-center gap-2.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
               role="menuitem"
               @click="closeMenu(); emit('delete', transaction.id)"
             >
-              <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
+              <AppIcon :icon="Trash2" size="action" class="text-red-400" />
               {{ t('delete') }}
             </button>
           </div>

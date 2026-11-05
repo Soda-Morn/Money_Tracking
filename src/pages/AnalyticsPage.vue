@@ -1,15 +1,18 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useTransactions } from '../composables/useTransactions'
-import { useFormat } from '../composables/useFormat'
+import { useFormat, toLocalDateString } from '../composables/useFormat'
+import { savingsRate as calcSavingsRate, avgDailySpend as calcAvgDaily, percentChange } from '../shared/finance'
 import { useCategories } from '../composables/useCategories'
 import { useBudget } from '../composables/useBudget'
-import ExpenseChart from '../components/charts/ExpenseChart.vue'
-import TrendChart from '../components/charts/TrendChart.vue'
-import BarChart from '../components/charts/BarChart.vue'
+import CategoryBreakdown from '../components/charts/CategoryBreakdown.vue'
+import SimplePagination from '../components/ui/SimplePagination.vue'
+import IncomeExpenseChart from '../components/charts/IncomeExpenseChart.vue'
 import BaseCard from '../components/ui/BaseCard.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
+import AppIcon from '../components/ui/AppIcon.vue'
+import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown } from 'lucide-vue-next'
 
 const { transactions, totalIncome, totalExpense, totalBalance } = useTransactions()
 const { t } = useI18n()
@@ -76,16 +79,30 @@ const inRange = (dateStr, range) => {
 const periodTransactions = computed(() => transactions.value.filter(t => inRange(t.date, periodRange.value)))
 const prevPeriodTransactions = computed(() => transactions.value.filter(t => inRange(t.date, prevPeriodRange.value)))
 
-// Expense / Income transactions (all-time — feed the two doughnut charts)
-const expenseTransactions = computed(() => transactions.value.filter(t => t.type === 'expense'))
-const incomeTransactions = computed(() => transactions.value.filter(t => t.type === 'income'))
+// Expense / Income transactions for the SELECTED PERIOD — feed the category
+// breakdowns and top categories, so every number on this page describes the
+// same time span as the period selector and summary cards.
+const expenseTransactions = computed(() => periodTransactions.value.filter(t => t.type === 'expense'))
+const incomeTransactions = computed(() => periodTransactions.value.filter(t => t.type === 'income'))
+
+// Stable colour order for the category charts: categories ranked by ALL-TIME
+// total, so a category keeps its colour when the period changes.
+const rankAllTime = (type) => {
+  const totals = {}
+  transactions.value.forEach(t => {
+    if (t.type === type) totals[t.category] = (totals[t.category] || 0) + Number(t.amount)
+  })
+  return Object.keys(totals).sort((a, b) => totals[b] - totals[a])
+}
+const expenseColorOrder = computed(() => rankAllTime('expense'))
+const incomeColorOrder = computed(() => rankAllTime('income'))
 
 // Period totals
 const periodIncome = computed(() => periodTransactions.value.filter(t => t.type === 'income').reduce((sum, t) => sum + Number(t.amount), 0))
 const periodExpense = computed(() => periodTransactions.value.filter(t => t.type === 'expense').reduce((sum, t) => sum + Number(t.amount), 0))
 const prevPeriodExpense = computed(() => prevPeriodTransactions.value.filter(t => t.type === 'expense').reduce((sum, t) => sum + Number(t.amount), 0))
 
-// Top spending categories (all-time)
+// Top spending categories (selected period)
 const topCategories = computed(() => {
   const grouped = {}
   expenseTransactions.value.forEach(t => {
@@ -117,24 +134,17 @@ const topCategoriesWithBudget = computed(() =>
 )
 
 // ── Stat cards: Savings Rate / Avg Daily Spend / MoM Change ───────────────────
-const savingsRate = computed(() => {
-  if (!periodIncome.value) return null
-  return Math.round(((periodIncome.value - periodExpense.value) / periodIncome.value) * 100)
-})
+// Report metrics come from src/shared/finance.js — identical to the Telegram /report
+const savingsRate = computed(() => calcSavingsRate(periodIncome.value, periodExpense.value))
 
-const avgDailySpend = computed(() => {
-  const { start, end } = periodRange.value
-  const today = new Date()
-  if (start > today) return null // period hasn't started yet — nothing to average
-  const effectiveEnd = end > today ? today : end
-  const days = Math.max(1, Math.round((effectiveEnd - start) / 86400000) + 1)
-  return periodExpense.value / days
-})
+// Counts elapsed calendar days (the old time-based rounding over-counted by one after midday)
+const avgDailySpend = computed(() => calcAvgDaily(
+  periodExpense.value,
+  { start: toLocalDateString(periodRange.value.start), end: toLocalDateString(periodRange.value.end) },
+  toLocalDateString(new Date())
+))
 
-const expenseChange = computed(() => {
-  if (!prevPeriodExpense.value) return null
-  return Math.round(((periodExpense.value - prevPeriodExpense.value) / prevPeriodExpense.value) * 100)
-})
+const expenseChange = computed(() => percentChange(periodExpense.value, prevPeriodExpense.value))
 
 const periodComparisonLabel = computed(() => ({
   month: t('insight_vs_last_month'),
@@ -143,21 +153,65 @@ const periodComparisonLabel = computed(() => ({
 }[periodMode.value]))
 
 // ── Recent Daily Spend — last 3 distinct days with any activity ──────────────
-const recentDailyGroups = computed(() => {
-  const byDate = {}
-  transactions.value.forEach(t => {
-    if (!byDate[t.date]) byDate[t.date] = []
-    byDate[t.date].push(t)
+// ── Daily activity for the selected period, paginated ─────────────────────────
+// Rows are paged (not days) so a busy day can't make one page enormous; each
+// day heading still shows that WHOLE day's net, even if it spans two pages.
+const DAILY_PAGE_SIZE = 10
+const dailyPage = ref(1)
+
+const dailyRows = computed(() =>
+  [...periodTransactions.value].sort((a, b) =>
+    a.date < b.date ? 1 : a.date > b.date ? -1 : String(b.createdAt || '').localeCompare(String(a.createdAt || ''))
+  )
+)
+const dailyPages = computed(() => Math.max(1, Math.ceil(dailyRows.value.length / DAILY_PAGE_SIZE)))
+
+const dayNet = computed(() => {
+  const net = {}
+  dailyRows.value.forEach(t => {
+    net[t.date] = (net[t.date] || 0) + (t.type === 'income' || t.type === 'borrow' ? Number(t.amount) : -Number(t.amount))
   })
-  const dates = Object.keys(byDate).sort((a, b) => (a < b ? 1 : -1)).slice(0, 3)
-  return dates.map(date => {
-    const rows = byDate[date]
-    const net = rows.reduce((s, t) => s + (t.type === 'income' || t.type === 'borrow' ? Number(t.amount) : -Number(t.amount)), 0)
-    return { date, label: formatRelativeDate(date), rows, net }
-  })
+  return net
 })
 
+const recentDailyGroups = computed(() => {
+  const start = (dailyPage.value - 1) * DAILY_PAGE_SIZE
+  const groups = []
+  dailyRows.value.slice(start, start + DAILY_PAGE_SIZE).forEach(t => {
+    let g = groups[groups.length - 1]
+    if (!g || g.date !== t.date) {
+      g = { date: t.date, label: formatRelativeDate(t.date), rows: [], net: dayNet.value[t.date] }
+      groups.push(g)
+    }
+    g.rows.push(t)
+  })
+  return groups
+})
+
+// New period (or data shrinking) → back to a valid page
+watch([periodRange, dailyPages], () => {
+  if (dailyPage.value > dailyPages.value) dailyPage.value = dailyPages.value
+})
+watch(periodRange, () => { dailyPage.value = 1 })
+
 const rowLabel = (t) => t.name || t.description || getCategoryInfo(t.category, t.type).label
+
+// Months shown in the Income vs Expenses chart, driven by the period selector:
+//   month   → the selected month and the 5 before it (6 months)
+//   quarter → the 3 months of the selected quarter
+//   year    → January–December of the selected year
+const chartMonths = computed(() => {
+  const y = currentYear.value
+  if (periodMode.value === 'year') return Array.from({ length: 12 }, (_, m) => ({ year: y, month: m }))
+  if (periodMode.value === 'quarter') {
+    const q = Math.floor(currentMonth.value / 3) * 3
+    return [0, 1, 2].map(i => ({ year: y, month: q + i }))
+  }
+  return Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(y, currentMonth.value - 5 + i, 1)
+    return { year: d.getFullYear(), month: d.getMonth() }
+  })
+})
 
 // Navigate periods
 const prevPeriod = () => {
@@ -217,22 +271,20 @@ const nextPeriod = () => {
         <div class="flex items-center justify-between">
           <button
             class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            :aria-label="t('previous')"
             @click="prevPeriod"
           >
-            <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-            </svg>
+            <AppIcon :icon="ChevronLeft" size="nav" class="text-gray-600 dark:text-gray-400" />
           </button>
           <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
             {{ periodLabel }}
           </h2>
           <button
             class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            :aria-label="t('next')"
             @click="nextPeriod"
           >
-            <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-            </svg>
+            <AppIcon :icon="ChevronRight" size="nav" class="text-gray-600 dark:text-gray-400" />
           </button>
         </div>
 
@@ -250,70 +302,79 @@ const nextPeriod = () => {
       </BaseCard>
 
       <!-- ── Key Stats ──────────────────────────────────────────────────────── -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div class="rounded-2xl border p-4 bg-primary-50 dark:bg-primary-900/20 border-primary-200 dark:border-primary-800">
-          <p class="text-xs font-semibold text-primary-700 dark:text-primary-400 uppercase tracking-wide mb-1">{{ t('insight_savings_rate') }}</p>
-          <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ savingsRate === null ? '—' : savingsRate + '%' }}</p>
-        </div>
-        <div class="rounded-2xl border p-4 bg-tertiary-50 dark:bg-tertiary-900/20 border-tertiary-200 dark:border-tertiary-800">
-          <p class="text-xs font-semibold text-tertiary-700 dark:text-tertiary-400 uppercase tracking-wide mb-1">{{ t('insight_avg_daily') }}</p>
-          <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ avgDailySpend === null ? '—' : formatCurrency(avgDailySpend) }}</p>
-        </div>
-        <div :class="[
-          'rounded-2xl border p-4',
-          expenseChange === null ? 'bg-gray-50 dark:bg-gray-700/40 border-gray-200 dark:border-gray-600'
-            : expenseChange > 0 ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
-            : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
-        ]">
-          <p class="text-xs font-semibold uppercase tracking-wide mb-1" :class="expenseChange === null ? 'text-gray-500 dark:text-gray-400' : expenseChange > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'">
-            {{ periodComparisonLabel }}
-          </p>
-          <p class="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
-            {{ expenseChange === null ? '—' : (expenseChange > 0 ? '+' : '') + expenseChange + '%' }}
-            <span v-if="expenseChange !== null" class="text-base">{{ expenseChange > 0 ? '📈' : '📉' }}</span>
-          </p>
-        </div>
-      </div>
-
-      <!-- Charts Grid -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Expense Breakdown -->
-        <BaseCard>
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">{{ t('expense_by_category') }}</h3>
-          <ExpenseChart
-            v-if="expenseTransactions.length > 0"
-            :data="expenseTransactions"
-            type="doughnut"
-          />
-          <div v-else class="h-64 flex items-center justify-center text-gray-500 dark:text-gray-400">
-            {{ t('no_expense_data') }}
+      <!-- One card, three stats: rows on phones, columns from sm. Neutral styling;
+           only the "vs last period" value carries good/bad colour (+ icon + sign). -->
+      <BaseCard padding="p-0">
+        <dl class="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-gray-100 dark:divide-gray-800">
+          <div class="flex sm:flex-col items-center sm:items-start justify-between gap-1 px-4 py-3.5 sm:py-4">
+            <dt class="text-sm sm:text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('insight_savings_rate') }}</dt>
+            <dd class="tabular text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">{{ savingsRate === null ? '—' : savingsRate + '%' }}</dd>
           </div>
-        </BaseCard>
-
-        <!-- Income Breakdown -->
-        <BaseCard>
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">{{ t('income_by_category') }}</h3>
-          <ExpenseChart
-            v-if="incomeTransactions.length > 0"
-            :data="incomeTransactions"
-            type="doughnut"
-          />
-          <div v-else class="h-64 flex items-center justify-center text-gray-500 dark:text-gray-400">
-            {{ t('no_income_data') }}
+          <div class="flex sm:flex-col items-center sm:items-start justify-between gap-1 px-4 py-3.5 sm:py-4">
+            <dt class="text-sm sm:text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('insight_avg_daily') }}</dt>
+            <dd class="tabular text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">{{ avgDailySpend === null ? '—' : formatCurrency(avgDailySpend) }}</dd>
           </div>
-        </BaseCard>
-      </div>
-
-      <!-- Trend Chart -->
-      <BaseCard>
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">{{ t('daily_trend') }}</h3>
-        <TrendChart :data="transactions" />
+          <div class="flex sm:flex-col items-center sm:items-start justify-between gap-1 px-4 py-3.5 sm:py-4">
+            <dt class="text-sm sm:text-xs font-medium text-gray-500 dark:text-gray-400">{{ periodComparisonLabel }}</dt>
+            <dd
+              class="tabular text-lg sm:text-2xl font-bold flex items-center gap-1.5"
+              :class="expenseChange === null ? 'text-gray-900 dark:text-white' : expenseChange > 0 ? 'text-red-500 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'"
+            >
+              <AppIcon
+                v-if="expenseChange !== null"
+                :icon="expenseChange > 0 ? TrendingUp : TrendingDown"
+                size="button"
+              />
+              {{ expenseChange === null ? '—' : (expenseChange > 0 ? '+' : '') + expenseChange + '%' }}
+            </dd>
+          </div>
+        </dl>
       </BaseCard>
 
-      <!-- Monthly Comparison -->
+      <!-- Charts Grid -->
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">
+        <!-- Expense Breakdown (selected period) -->
+        <BaseCard>
+          <div class="flex items-baseline justify-between gap-3 mb-4">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('expense_by_category') }}</h3>
+            <span class="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">{{ periodLabel }}</span>
+          </div>
+          <CategoryBreakdown
+            v-if="expenseTransactions.length > 0"
+            :transactions="expenseTransactions"
+            type="expense"
+            :color-order="expenseColorOrder"
+          />
+          <p v-else class="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+            {{ t('no_expense_data') }}
+          </p>
+        </BaseCard>
+
+        <!-- Income Breakdown (selected period) -->
+        <BaseCard>
+          <div class="flex items-baseline justify-between gap-3 mb-4">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('income_by_category') }}</h3>
+            <span class="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">{{ periodLabel }}</span>
+          </div>
+          <CategoryBreakdown
+            v-if="incomeTransactions.length > 0"
+            :transactions="incomeTransactions"
+            type="income"
+            :color-order="incomeColorOrder"
+          />
+          <p v-else class="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+            {{ t('no_income_data') }}
+          </p>
+        </BaseCard>
+      </div>
+
+      <!-- Income vs Expenses (grouped monthly bars, follows the period selector) -->
       <BaseCard>
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">{{ t('monthly_comparison') }}</h3>
-        <BarChart :data="transactions" />
+        <div class="flex items-baseline justify-between gap-3 mb-1">
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('income_vs_expenses') }}</h3>
+          <span class="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">{{ t('chart_range_' + periodMode) }}</span>
+        </div>
+        <IncomeExpenseChart :transactions="transactions" :months="chartMonths" />
       </BaseCard>
 
       <!-- Top Spending Categories -->
@@ -330,7 +391,7 @@ const nextPeriod = () => {
                 <span class="w-6 h-6 flex items-center justify-center text-sm font-medium bg-gray-100 dark:bg-gray-700 rounded-full text-gray-600 dark:text-gray-300">
                   {{ index + 1 }}
                 </span>
-                <span class="text-xl">{{ getCatIcon(item.category) }}</span>
+                <AppIcon :name="getCatIcon(item.category)" fallback="tag" size="button" class="text-gray-500 dark:text-gray-400" />
                 <span class="text-gray-900 dark:text-white">{{ getCatLabel(item.category) }}</span>
               </div>
               <span class="font-medium text-gray-900 dark:text-white">
@@ -357,32 +418,39 @@ const nextPeriod = () => {
 
       <!-- Recent Daily Spend -->
       <BaseCard v-if="recentDailyGroups.length > 0">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">{{ t('recent_daily_spend') }}</h3>
-        <div class="space-y-4">
-          <div v-for="group in recentDailyGroups" :key="group.date">
-            <div class="flex items-center justify-between mb-2">
-              <span class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{{ group.label }}</span>
-              <span class="text-xs font-bold" :class="group.net >= 0 ? 'text-green-600' : 'text-red-500'">
+        <div class="flex items-baseline justify-between gap-3 mb-3">
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('recent_daily_spend') }}</h3>
+          <span class="tabular text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+            {{ periodLabel }} · {{ t('n_records', { n: dailyRows.length }) }}
+          </span>
+        </div>
+        <!-- Fixed min-height keeps the pager from jumping between short and full pages -->
+        <div class="space-y-4 min-h-[22rem]">
+          <section v-for="group in recentDailyGroups" :key="group.date">
+            <div class="flex items-center justify-between gap-2 py-1.5 border-b border-gray-100 dark:border-gray-800">
+              <span class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide truncate">{{ group.label }}</span>
+              <span class="tabular text-xs font-bold whitespace-nowrap" :class="group.net >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'">
                 {{ group.net >= 0 ? '+' : '' }}{{ formatCurrency(group.net) }}
               </span>
             </div>
-            <div class="space-y-1.5">
-              <div v-for="tx in group.rows" :key="tx.id" class="flex items-center justify-between text-sm">
-                <span class="text-gray-700 dark:text-gray-300 truncate">{{ rowLabel(tx) }}</span>
+            <ul>
+              <li v-for="tx in group.rows" :key="tx.id" class="flex items-center justify-between gap-3 py-2 text-sm">
+                <span class="min-w-0 truncate text-gray-700 dark:text-gray-300">{{ rowLabel(tx) }}</span>
                 <span
-                  class="font-medium shrink-0 ml-2"
-                  :class="(tx.type === 'income' || tx.type === 'borrow') ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'"
+                  class="tabular font-semibold whitespace-nowrap shrink-0"
+                  :class="(tx.type === 'income' || tx.type === 'borrow') ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'"
                 >{{ (tx.type === 'income' || tx.type === 'borrow') ? '+' : '-' }}{{ formatCurrency(tx.amount) }}</span>
-              </div>
-            </div>
-          </div>
+              </li>
+            </ul>
+          </section>
         </div>
+        <SimplePagination v-model:page="dailyPage" :pages="dailyPages" />
       </BaseCard>
 
       <!-- Overall Summary -->
-      <BaseCard class="bg-gradient-to-r from-primary-700 to-primary-800 text-white">
+      <BaseCard class="!bg-primary-700 dark:!bg-primary-800 !border-transparent text-white">
         <h3 class="text-lg font-semibold mb-4">{{ t('all_transactions') }}</h3>
-        <div class="grid grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 min-[400px]:grid-cols-3 gap-4 [&_p:last-child]:tabular-nums [&_p:last-child]:break-all">
           <div>
             <p class="text-primary-200 text-sm mb-1">{{ t('total_income') }}</p>
             <p class="text-xl font-bold">{{ formatCurrency(totalIncome) }}</p>

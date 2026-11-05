@@ -1,0 +1,51 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Firestore rules for the Telegram integration.
+//
+// MERGE these `match` blocks into your EXISTING rules (Firebase console →
+// Firestore → Rules) inside `match /databases/{database}/documents { … }`.
+// Do not replace your current rules wholesale.
+//
+// The Worker uses a service account, which bypasses these rules. They exist
+// to stop BROWSER clients from touching the bot's internal collections.
+//
+// ⚠️ If your current rules contain a catch-all such as
+//      match /{document=**} { allow read, write: if request.auth != null; }
+//    remove it — Firestore ORs rules together, so a catch-all would override
+//    the `if false` lines below and let any signed-in user read other users'
+//    data. Per-user access should look like the `users` block below.
+// ─────────────────────────────────────────────────────────────────────────────
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // (Expected to exist already) each user can only access their own data.
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // One-time Telegram link codes. The signed-in user may CREATE a code for
+    // themselves only; the document id is the SHA-256 of the code. Nobody can
+    // read, list, change or delete them from a browser.
+    match /telegramLinkCodes/{codeHash} {
+      allow create: if request.auth != null
+        && codeHash.matches('^[0-9a-f]{64}$')
+        && request.resource.data.keys().hasOnly(['uid', 'expiresAt', 'createdAt', 'timezone'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.expiresAt is timestamp
+        && request.resource.data.expiresAt <= request.time + duration.value(10, 'm')
+        && request.resource.data.timezone is string
+        && request.resource.data.timezone.size() <= 64;
+      allow read, update, delete: if false;
+    }
+
+    // Telegram → app account mapping and bot conversation state.
+    // Written only by the Worker (service account).
+    match /telegramLinks/{telegramUserId} {
+      allow read, write: if false;
+    }
+    match /telegramSessions/{telegramUserId} {
+      allow read, write: if false;
+    }
+  }
+}

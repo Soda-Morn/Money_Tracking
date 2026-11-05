@@ -4,6 +4,8 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useFormat } from '../../composables/useFormat'
 import { useLoans } from '../../composables/useLoans'
+import AppIcon from '../ui/AppIcon.vue'
+import { Landmark, CircleAlert, Clock, CircleCheck } from 'lucide-vue-next'
 
 const props = defineProps({
   loan: { type: Object, required: true }
@@ -44,23 +46,23 @@ const viewDetails = () => router.push(`/loans/${props.loan.id}`)
     <div class="p-4 border-b border-gray-100 dark:border-gray-700">
       <div class="flex items-start justify-between gap-2">
         <div class="flex items-center gap-2.5 min-w-0">
-          <div class="w-9 h-9 shrink-0 bg-primary-100 dark:bg-primary-900/40 rounded-full flex items-center justify-center text-base">
-            💳
+          <div class="w-9 h-9 shrink-0 bg-primary-100 dark:bg-primary-900/40 rounded-full flex items-center justify-center text-primary-600 dark:text-primary-400">
+            <AppIcon :icon="Landmark" size="button" />
           </div>
           <h3 class="font-semibold text-gray-900 dark:text-white truncate">{{ t('loan_from', { name: loan.lenderName }) }}</h3>
         </div>
         <span
           v-if="isPaidOff"
-          class="shrink-0 px-2 py-0.5 text-[10px] font-semibold uppercase bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full"
-        >{{ t('paid_off') }}</span>
+          class="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold uppercase bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full"
+        ><AppIcon :icon="CircleCheck" size="xs" class="text-emerald-600 dark:text-emerald-400" />{{ t('paid_off') }}</span>
         <span
           v-else-if="status === 'overdue'"
-          class="shrink-0 px-2 py-0.5 text-[10px] font-semibold uppercase bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full"
-        >🔴 {{ t('overdue') }}</span>
+          class="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold uppercase bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full"
+        ><AppIcon :icon="CircleAlert" size="xs" />{{ t('overdue') }}</span>
         <span
           v-else
-          class="shrink-0 px-2 py-0.5 text-[10px] font-semibold uppercase bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-full"
-        >🟡 {{ t('upcoming') }}</span>
+          class="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold uppercase bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-full"
+        ><AppIcon :icon="Clock" size="xs" />{{ t('upcoming') }}</span>
       </div>
     </div>
 

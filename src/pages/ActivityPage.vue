@@ -8,15 +8,23 @@ import TransactionForm from '../components/transactions/TransactionForm.vue'
 import BaseCard from '../components/ui/BaseCard.vue'
 import BaseButton from '../components/ui/BaseButton.vue'
 import BaseModal from '../components/ui/BaseModal.vue'
-import MobileFAB from '../components/ui/MobileFAB.vue'
+import ConfirmDialog from '../components/ui/ConfirmDialog.vue'
+import AppIcon from '../components/ui/AppIcon.vue'
+import { ChevronLeft, ChevronRight, ChevronDown, FileDown, LoaderCircle, Search, X, CalendarDays, Plus } from 'lucide-vue-next'
 import { useToast } from '../composables/useToast'
-import { usePdfExport } from '../composables/usePdfExport'
 import { useAuth } from '../composables/useAuth'
+import { useQuickAdd } from '../composables/useQuickAdd'
 import { useI18n } from 'vue-i18n'
 
-const { transactions, addTransaction, updateTransaction, deleteTransaction } = useTransactions()
+const { transactions, updateTransaction, deleteTransaction } = useTransactions()
+const quickAdd = useQuickAdd()
 const toast = useToast()
-const { exportToPdf } = usePdfExport()
+// PDF libraries (jsPDF + html2canvas, ~180 kB gzip) are downloaded only when
+// the user actually exports — not every time this page opens.
+const exportToPdf = async (options) => {
+  const { usePdfExport } = await import('../composables/usePdfExport')
+  return usePdfExport().exportToPdf(options)
+}
 const { currentUser } = useAuth()
 const { getMonthName, formatCurrency, formatDate } = useFormat()
 const { getCategoryInfo } = useCategories()
@@ -190,7 +198,7 @@ const activeChips = computed(() => {
   }
   if (categoryFilter.value) {
     const cat = categoryOptions.value.find(c => c.value === categoryFilter.value)
-    chips.push({ key: 'category', label: cat ? `${cat.icon} ${cat.label}` : categoryFilter.value, clear: () => { categoryFilter.value = '' } })
+    chips.push({ key: 'category', label: cat ? cat.label : categoryFilter.value, clear: () => { categoryFilter.value = '' } })
   }
   if (searchQuery.value.trim()) {
     chips.push({ key: 'search', label: `"${searchQuery.value.trim()}"`, clear: () => { searchQuery.value = '' } })
@@ -254,7 +262,6 @@ const visiblePageNumbers = computed(() => {
 })
 
 // ── Modal state ───────────────────────────────────────────────────────────────
-const showAddModal  = ref(false)
 const showEditModal = ref(false)
 const showViewModal = ref(false)
 const editingTransaction = ref(null)
@@ -264,6 +271,14 @@ const viewingTransaction = ref(null)
 const showDeleteDialog  = ref(false)
 const deletingId        = ref(null)
 const deletingCategory  = ref('')
+const deleting          = ref(false)
+const saving            = ref(false)
+
+const deleteMessage = computed(() =>
+  deletingCategory.value
+    ? t('delete_confirm_name', { name: deletingCategory.value })
+    : t('delete_confirm_desc')
+)
 
 // ── PDF Export ────────────────────────────────────────────────────────────────
 const isExporting = ref(false)
@@ -291,12 +306,6 @@ const handleExportPdf = async () => {
   }
 }
 
-const handleAdd = async (data) => {
-  await addTransaction(data)
-  showAddModal.value = false
-  toast.success(t('toast_transaction_added'))
-}
-
 const handleEdit = (transaction) => {
   editingTransaction.value = transaction
   showEditModal.value = true
@@ -308,10 +317,23 @@ const handleView = (transaction) => {
 }
 
 const handleUpdate = async (data) => {
-  await updateTransaction(editingTransaction.value.id, data)
+  if (saving.value || !editingTransaction.value) return
+  saving.value = true
+  try {
+    await updateTransaction(editingTransaction.value.id, data)
+    showEditModal.value = false
+    editingTransaction.value = null
+    toast.success(t('toast_transaction_updated'))
+  } catch (e) {
+    toast.error(t('toast_save_error'))
+  } finally {
+    saving.value = false
+  }
+}
+
+const closeEditModal = () => {
+  if (saving.value) return
   showEditModal.value = false
-  editingTransaction.value = null
-  toast.success(t('toast_transaction_updated'))
 }
 
 const handleDelete = (id) => {
@@ -322,16 +344,28 @@ const handleDelete = (id) => {
 }
 
 const confirmDelete = async () => {
-  if (deletingId.value) {
+  if (deleting.value) return
+  if (!deletingId.value) {
+    cancelDelete()
+    return
+  }
+  deleting.value = true
+  try {
     await deleteTransaction(deletingId.value)
     toast.success(t('toast_transaction_deleted'))
+    showDeleteDialog.value = false
+    deletingId.value = null
+    deletingCategory.value = ''
+  } catch (e) {
+    // Keep the dialog open so the user can retry or cancel
+    toast.error(t('toast_delete_error'))
+  } finally {
+    deleting.value = false
   }
-  showDeleteDialog.value = false
-  deletingId.value = null
-  deletingCategory.value = ''
 }
 
 const cancelDelete = () => {
+  if (deleting.value) return
   showDeleteDialog.value = false
   deletingId.value = null
   deletingCategory.value = ''
@@ -341,9 +375,15 @@ const cancelDelete = () => {
 <template>
   <div class="space-y-4 lg:space-y-6">
     <!-- Page Header -->
-    <div class="hidden lg:block">
-      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ t('pages.activity') }}</h1>
-      <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ t('track_income_expenses') }}</p>
+    <div class="hidden lg:flex items-start justify-between gap-4">
+      <div class="min-w-0">
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ t('pages.activity') }}</h1>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ t('track_income_expenses') }}</p>
+      </div>
+      <BaseButton class="shrink-0" @click="quickAdd.open('expense')">
+        <AppIcon :icon="Plus" size="button" />
+        {{ t('add_transaction') }}
+      </BaseButton>
     </div>
 
     <!-- Month Filter Navigator -->
@@ -353,11 +393,10 @@ const cancelDelete = () => {
       <div class="flex items-center justify-between bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm px-2 py-1">
         <button
           class="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+          :aria-label="t('previous')"
           @click="prevMonth"
         >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-          </svg>
+          <AppIcon :icon="ChevronLeft" size="nav" />
         </button>
 
         <div class="flex items-center gap-1">
@@ -366,23 +405,21 @@ const cancelDelete = () => {
             @click="openPicker"
           >
             <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ monthLabel }}</span>
-            <svg
-              class="w-4 h-4 text-gray-400 transition-transform duration-200"
+            <AppIcon
+              :icon="ChevronDown"
+              size="action"
+              class="text-gray-400 transition-transform duration-200"
               :class="showMonthPicker ? 'rotate-180' : ''"
-              fill="none" stroke="currentColor" viewBox="0 0 24 24"
-            >
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-            </svg>
+            />
           </button>
         </div>
 
         <button
           class="p-2 rounded-lg transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700"
+          :aria-label="t('next')"
           @click="nextMonth"
         >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-          </svg>
+          <AppIcon :icon="ChevronRight" size="nav" />
         </button>
       </div>
 
@@ -406,20 +443,18 @@ const cancelDelete = () => {
           <div class="flex items-center justify-between mb-3">
             <button
               class="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              :aria-label="t('previous')"
               @click="pickerYear--"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-              </svg>
+              <AppIcon :icon="ChevronLeft" size="action" />
             </button>
             <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ pickerYear }}</span>
             <button
               class="p-2 rounded-lg transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700"
+              :aria-label="t('next')"
               @click="pickerYear++"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-              </svg>
+              <AppIcon :icon="ChevronRight" size="action" />
             </button>
           </div>
 
@@ -444,96 +479,96 @@ const cancelDelete = () => {
 
     <!-- Transactions List -->
     <BaseCard>
-      <!-- Header -->
-      <div class="flex items-center justify-between mb-3">
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('transactions') }}</h2>
-        <div class="flex items-center gap-2">
-          <span class="text-sm text-gray-500 dark:text-gray-400">{{ dateFilteredTransactions.length }} total</span>
-          <button
-            :disabled="isExporting || dateFilteredTransactions.length === 0"
-            class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
-            :class="isExporting
-              ? 'bg-red-50 dark:bg-red-900/20 text-red-500'
-              : 'bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400'"
-            :title="'Export ' + monthLabel + ' as PDF'"
-            @click="handleExportPdf"
-          >
-            <svg v-if="!isExporting" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <svg v-else class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-            </svg>
-            <span class="hidden sm:inline">{{ isExporting ? 'Exporting...' : 'PDF' }}</span>
-          </button>
-        </div>
+      <!-- Header (title hidden on mobile — the app header already says "Transactions") -->
+      <div class="flex items-center justify-between gap-2 mb-3">
+        <h2 class="hidden sm:block text-lg font-semibold text-gray-900 dark:text-white">{{ t('transactions') }}</h2>
+        <span class="tabular text-sm text-gray-500 dark:text-gray-400">{{ dateFilteredTransactions.length }} {{ t('total').toLowerCase() }}</span>
+        <button
+          type="button"
+          :disabled="isExporting || dateFilteredTransactions.length === 0"
+          class="pressable h-11 inline-flex items-center gap-1.5 px-3.5 rounded-xl text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400"
+          :title="t('export_pdf') + ' · ' + monthLabel"
+          :aria-busy="isExporting ? 'true' : undefined"
+          @click="handleExportPdf"
+        >
+          <AppIcon v-if="!isExporting" :icon="FileDown" size="action" />
+          <AppIcon v-else :icon="LoaderCircle" size="action" class="animate-spin" />
+          PDF
+        </button>
       </div>
 
       <!-- Search -->
       <div class="relative mb-3">
-        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
-        </svg>
+        <AppIcon :icon="Search" size="action" class="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
         <input
           v-model="searchQuery"
-          type="text"
+          type="search"
+          enterkeyhint="search"
           :placeholder="t('search_placeholder')"
-          class="w-full pl-9 pr-8 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+          class="w-full h-12 pl-10 pr-12 text-base sm:text-sm rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500"
         />
         <button
           v-if="searchQuery"
-          class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+          type="button"
+          class="absolute right-0.5 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+          :aria-label="t('clear_search')"
           @click="searchQuery = ''"
         >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
+          <AppIcon :icon="X" size="action" />
         </button>
       </div>
 
-      <!-- Filter row: type pills + category dropdown + date toggle -->
-      <div class="flex items-center gap-2 mb-3">
-        <div class="flex-1 grid grid-cols-3 gap-1 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
+      <!-- Filters: on phones the type toggle gets its own full-width row,
+           category + date share the second row. One row from sm and up. -->
+      <div class="flex flex-wrap sm:flex-nowrap items-center gap-2 mb-3">
+        <div role="radiogroup" :aria-label="t('transactions')" class="basis-full sm:basis-auto sm:flex-1 grid grid-cols-3 gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl">
           <button
             v-for="opt in TYPE_OPTIONS"
             :key="opt.value"
+            type="button"
+            role="radio"
+            :aria-checked="typeFilter === opt.value"
             :class="[
-              'py-1.5 text-sm font-medium rounded-md transition-colors',
+              'h-10 px-2 text-sm font-semibold rounded-lg transition-colors truncate',
               typeFilter === opt.value
                 ? opt.value === 'income'
-                  ? 'bg-white dark:bg-gray-600 text-green-600 shadow-sm'
+                  ? 'bg-white dark:bg-gray-700 text-emerald-600 dark:text-emerald-400 shadow-sm'
                   : opt.value === 'expense'
-                    ? 'bg-white dark:bg-gray-600 text-red-600 shadow-sm'
-                    : 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
-                : 'text-gray-500 dark:text-gray-400'
+                    ? 'bg-white dark:bg-gray-700 text-red-500 dark:text-red-400 shadow-sm'
+                    : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
             ]"
             @click="typeFilter = opt.value"
           >{{ opt.label }}</button>
         </div>
 
-        <select
-          v-model="categoryFilter"
-          class="shrink-0 max-w-[9.5rem] px-2.5 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-        >
-          <option value="">{{ t('category') }}</option>
-          <option v-for="cat in categoryOptions" :key="cat.value" :value="cat.value">{{ cat.icon }} {{ cat.label }}</option>
-        </select>
+        <div class="relative flex-1 min-w-0 sm:flex-none sm:w-44">
+          <select
+            v-model="categoryFilter"
+            :aria-label="t('category')"
+            class="w-full h-12 pl-3.5 pr-9 appearance-none text-base sm:text-sm rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white truncate focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500"
+          >
+            <option value="">{{ t('category') }}</option>
+            <option v-for="cat in categoryOptions" :key="cat.value" :value="cat.value">{{ cat.label }}</option>
+          </select>
+          <AppIcon :icon="ChevronDown" size="action" class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        </div>
 
         <!-- Calendar toggle — only when a specific month is active -->
         <button
           v-if="selectedMonth"
+          type="button"
           :class="[
-            'shrink-0 w-10 h-10 flex items-center justify-center rounded-xl border transition-colors',
+            'shrink-0 w-12 h-12 flex items-center justify-center rounded-xl border transition-colors',
             showDatePicker || dateFilter
               ? 'bg-primary-600 border-primary-600 text-white'
-              : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+              : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
           ]"
+          :aria-label="t('date')"
+          :aria-pressed="showDatePicker ? 'true' : 'false'"
           @click="showDatePicker = !showDatePicker"
         >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
+          <AppIcon :icon="CalendarDays" size="button" />
         </button>
       </div>
 
@@ -545,10 +580,8 @@ const cancelDelete = () => {
           class="inline-flex items-center gap-1.5 bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 text-xs font-medium px-3 py-1 rounded-full"
         >
           {{ chip.label }}
-          <button class="hover:text-primary-900 dark:hover:text-primary-100" @click="chip.clear">
-            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+          <button type="button" class="-my-2 -mr-2 w-8 h-8 inline-flex items-center justify-center rounded-full hover:text-primary-900 dark:hover:text-primary-100" :aria-label="t('remove_filter')" @click="chip.clear">
+            <AppIcon :icon="X" size="xs" />
           </button>
         </span>
         <button
@@ -614,11 +647,10 @@ const cancelDelete = () => {
               ? 'border-gray-100 dark:border-gray-700 text-gray-300 dark:text-gray-600 cursor-not-allowed bg-white dark:bg-gray-800'
               : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm'
           ]"
+          :aria-label="t('previous')"
           @click="currentPage--"
         >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-          </svg>
+          <AppIcon :icon="ChevronLeft" size="action" />
         </button>
 
         <template v-for="p in visiblePageNumbers" :key="p">
@@ -646,28 +678,23 @@ const cancelDelete = () => {
               ? 'border-gray-100 dark:border-gray-700 text-gray-300 dark:text-gray-600 cursor-not-allowed bg-white dark:bg-gray-800'
               : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm'
           ]"
+          :aria-label="t('next')"
           @click="currentPage++"
         >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-          </svg>
+          <AppIcon :icon="ChevronRight" size="action" />
         </button>
       </div>
     </BaseCard>
 
-    <!-- Add Transaction Modal -->
-    <BaseModal :show="showAddModal" :title="t('add_transaction')" @close="showAddModal = false">
-      <TransactionForm @submit="handleAdd" @cancel="showAddModal = false" />
-    </BaseModal>
-
     <!-- Edit Transaction Modal -->
-    <BaseModal :show="showEditModal" :title="t('edit_transaction')" @close="showEditModal = false">
+    <BaseModal :show="showEditModal" :title="t('edit_transaction')" @close="closeEditModal">
       <TransactionForm
         v-if="editingTransaction"
         :initial-data="editingTransaction"
         :is-editing="true"
+        :saving="saving"
         @submit="handleUpdate"
-        @cancel="showEditModal = false"
+        @cancel="closeEditModal"
       />
     </BaseModal>
 
@@ -677,8 +704,9 @@ const cancelDelete = () => {
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div class="p-3 rounded-xl bg-gray-50 dark:bg-gray-700/40">
             <div class="text-xs text-gray-500 dark:text-gray-400">{{ t('category') }}</div>
-            <div class="font-medium text-gray-900 dark:text-white truncate">
-              {{ getCategoryInfo(viewingTransaction.category, viewingTransaction.type).label }}
+            <div class="font-medium text-gray-900 dark:text-white flex items-center gap-1.5 min-w-0">
+              <AppIcon :name="getCategoryInfo(viewingTransaction.category, viewingTransaction.type).icon" fallback="tag" size="action" class="text-gray-500 dark:text-gray-400" />
+              <span class="truncate">{{ getCategoryInfo(viewingTransaction.category, viewingTransaction.type).label }}</span>
             </div>
           </div>
           <div class="p-3 rounded-xl bg-gray-50 dark:bg-gray-700/40">
@@ -709,76 +737,15 @@ const cancelDelete = () => {
       </div>
     </BaseModal>
 
-    <!-- Mobile FAB -->
-    <MobileFAB @click="showAddModal = true" />
-
-    <!-- ── Delete Confirmation Dialog ──────────────────────────────────────── -->
-    <Teleport to="body">
-      <Transition
-        enter-active-class="transition duration-200 ease-out"
-        enter-from-class="opacity-0"
-        enter-to-class="opacity-100"
-        leave-active-class="transition duration-150 ease-in"
-        leave-from-class="opacity-100"
-        leave-to-class="opacity-0"
-      >
-        <div
-          v-if="showDeleteDialog"
-          class="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
-          @click.self="cancelDelete"
-        >
-          <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-          <Transition
-            enter-active-class="transition duration-200 ease-out"
-            enter-from-class="translate-y-4 opacity-0 sm:scale-95"
-            enter-to-class="translate-y-0 opacity-100 sm:scale-100"
-            leave-active-class="transition duration-150 ease-in"
-            leave-from-class="translate-y-0 opacity-100 sm:scale-100"
-            leave-to-class="translate-y-4 opacity-0 sm:scale-95"
-          >
-            <div
-              v-if="showDeleteDialog"
-              class="relative w-full sm:max-w-sm mx-auto bg-white dark:bg-gray-800 rounded-t-3xl sm:rounded-2xl shadow-2xl px-6 pt-6 pb-8 sm:pb-6"
-            >
-              <div class="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto mb-5 sm:hidden" />
-              <div class="flex items-center justify-center mb-4">
-                <div class="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center">
-                  <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </div>
-              </div>
-              <h3 class="text-lg font-bold text-center text-gray-900 dark:text-white mb-1">
-                {{ t('delete_confirm_title') }}
-              </h3>
-              <p class="text-sm text-center text-gray-500 dark:text-gray-400 mb-6">
-                <template v-if="deletingCategory">
-                  {{ t('delete_confirm_name', { name: deletingCategory }) }}
-                </template>
-                <template v-else>
-                  {{ t('delete_confirm_desc') }}
-                </template>
-              </p>
-              <div class="flex flex-col-reverse sm:flex-row gap-3">
-                <button
-                  class="flex-1 py-3 rounded-xl border border-gray-200 dark:border-gray-600 text-sm font-semibold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-                  @click="cancelDelete"
-                >
-                  {{ t('cancel') }}
-                </button>
-                <button
-                  class="flex-1 py-3 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 active:bg-red-700 transition-colors shadow-sm"
-                  @click="confirmDelete"
-                >
-                  {{ t('delete') }}
-                </button>
-              </div>
-            </div>
-          </Transition>
-        </div>
-      </Transition>
-    </Teleport>
+    <!-- Delete Confirmation -->
+    <ConfirmDialog
+      :show="showDeleteDialog"
+      :title="t('delete_confirm_title')"
+      :message="deleteMessage"
+      :loading="deleting"
+      @confirm="confirmDelete"
+      @cancel="cancelDelete"
+    />
   </div>
 </template>
 

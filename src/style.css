@@ -148,3 +148,60 @@ input[type="number"] {
 .animate-scale-in {
   animation: scaleIn 0.22s ease-out both;
 }
+
+/* ── Design system: motion ─────────────────────────────────────────────────────
+   Short, natural transitions only (150–300ms). Everything below is disabled
+   automatically for users who ask their OS for reduced motion. */
+:root {
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 150ms;
+  --dur-base: 220ms;
+}
+
+/* Staggered entrance for dashboard cards: add .reveal + style="--i: n" */
+.reveal {
+  /* Short + tight stagger: the last card is visible within ~0.4s, not ~0.6s */
+  animation: slideUp 0.24s var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 25ms);
+}
+
+/* Tactile press feedback for tappable surfaces */
+.pressable {
+  transition: transform var(--dur-fast) var(--ease-out), background-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.pressable:active {
+  transform: scale(0.97);
+}
+
+/* Loading skeleton */
+.skeleton {
+  background: linear-gradient(90deg, #eceff0 25%, #f5f7f7 50%, #eceff0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+  border-radius: 0.75rem;
+}
+html.dark .skeleton {
+  background: linear-gradient(90deg, #1b2422 25%, #232e2b 50%, #1b2422 75%);
+  background-size: 200% 100%;
+}
+
+/* Money should never jitter when digits change */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Remove the grey flash on tap in mobile browsers */
+button, a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

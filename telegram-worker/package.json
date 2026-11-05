@@ -1,0 +1,16 @@
+{
+  "name": "smart-money-telegram-worker",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Telegram bot webhook for Smart Money Tracking (Cloudflare Workers free plan)",
+  "scripts": {
+    "test": "node --test \"test/*.test.js\"",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "check": "wrangler deploy --dry-run --outdir dist"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

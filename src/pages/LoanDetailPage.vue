@@ -12,6 +12,8 @@ import LoanForm from '../components/loans/LoanForm.vue'
 import LoanPaymentForm from '../components/loans/LoanPaymentForm.vue'
 import PaymentHistoryList from '../components/loans/PaymentHistoryList.vue'
 import RepaymentScheduleTable from '../components/loans/RepaymentScheduleTable.vue'
+import AppIcon from '../components/ui/AppIcon.vue'
+import { ArrowLeft, PartyPopper, Clock, Lightbulb, Trash2 } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
@@ -138,10 +140,8 @@ const confirmDeletePayment = async () => {
   <div class="space-y-5 max-w-2xl mx-auto animate-fade-in">
     <!-- Header -->
     <div class="flex items-center gap-3">
-      <button class="p-2 rounded-xl text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" @click="router.back()">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-        </svg>
+      <button class="p-2 rounded-xl text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" :aria-label="t('back')" @click="router.back()">
+        <AppIcon :icon="ArrowLeft" size="nav" />
       </button>
       <h1 class="text-xl font-bold text-gray-900 dark:text-white truncate">
         {{ loan ? t('loan_from', { name: loan.lenderName }) : '' }}
@@ -151,7 +151,9 @@ const confirmDeletePayment = async () => {
     <template v-if="loan">
       <!-- Paid off banner -->
       <div v-if="isPaidOff" class="bg-gradient-to-br from-green-500 to-green-700 rounded-2xl p-5 text-center text-white shadow-lg">
-        <p class="text-3xl mb-1">🎉</p>
+        <div class="w-16 h-16 mx-auto mb-2 rounded-2xl bg-white/20 text-white flex items-center justify-center">
+          <AppIcon :icon="PartyPopper" size="hero" />
+        </div>
         <p class="text-lg font-bold">{{ t('loan_paid_off_title') }}</p>
         <p class="text-sm text-green-100 mt-1">{{ t('loan_paid_off_desc') }}</p>
       </div>
@@ -160,8 +162,9 @@ const confirmDeletePayment = async () => {
       <BaseCard>
         <p class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">{{ t('remaining_balance') }}</p>
         <p class="text-3xl font-bold text-gray-900 dark:text-white mb-1">{{ formatCurrency(remaining) }}</p>
-        <p v-if="!isPaidOff && nextPaymentDate" class="text-xs text-amber-600 dark:text-amber-400 mb-3">
-          🟡 {{ t('next_payment_due', { amount: formatCurrency(loan.expectedMonthlyPayment), date: formatDate(nextPaymentDate.toISOString().slice(0, 10)) }) }}
+        <p v-if="!isPaidOff && nextPaymentDate" class="inline-flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 mb-3">
+          <AppIcon :icon="Clock" size="xs" class="text-amber-500" />
+          {{ t('next_payment_due', { amount: formatCurrency(loan.expectedMonthlyPayment), date: formatDate(nextPaymentDate) }) }}
         </p>
 
         <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-1.5 mt-3">
@@ -204,11 +207,11 @@ const confirmDeletePayment = async () => {
 
       <!-- Insight -->
       <div class="flex items-start gap-2.5 p-3.5 rounded-2xl bg-primary-50 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-800">
-        <span class="text-lg leading-none">💡</span>
+        <AppIcon :icon="Lightbulb" size="button" class="text-primary-600 dark:text-primary-400" />
         <p class="text-sm text-primary-800 dark:text-primary-300">{{ insight }}</p>
       </div>
       <div v-if="!isPaidOff && daysUntilNextPayment !== null" class="flex items-start gap-2.5 -mt-2 p-3.5 rounded-2xl bg-gray-50 dark:bg-gray-700/40">
-        <span class="text-lg leading-none">💡</span>
+        <AppIcon :icon="Lightbulb" size="button" class="text-amber-500" />
         <p class="text-sm text-gray-700 dark:text-gray-300">
           <template v-if="daysUntilNextPayment >= 0">{{ t('insight_days_until_payment', { n: daysUntilNextPayment }) }}</template>
           <template v-else>{{ t('insight_payment_overdue', { n: Math.abs(daysUntilNextPayment) }) }}</template>
@@ -229,9 +232,10 @@ const confirmDeletePayment = async () => {
 
       <!-- Delete Loan -->
       <button
-        class="w-full py-2.5 text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors"
+        class="w-full inline-flex items-center justify-center gap-1.5 py-2.5 text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors"
         @click="showDeleteLoanDialog = true"
       >
+        <AppIcon :icon="Trash2" size="action" />
         {{ t('delete_loan') }}
       </button>
 

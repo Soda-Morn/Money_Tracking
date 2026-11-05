@@ -1,9 +1,11 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useFormat } from '../../composables/useFormat'
 import { useSavingsGoals } from '../../composables/useSavingsGoals'
 import { useI18n } from 'vue-i18n'
 import ProgressBar from '../ui/ProgressBar.vue'
+import AppIcon from '../ui/AppIcon.vue'
+import { Ellipsis, Pencil, Trash2 } from 'lucide-vue-next'
 
 const props = defineProps({
   goal: {
@@ -41,14 +43,15 @@ const onDocClick = (event) => {
 }
 const onDocKeydown = (event) => { if (event.key === 'Escape') closeMenu() }
 
-onMounted(() => {
-  document.addEventListener('click', onDocClick)
-  document.addEventListener('keydown', onDocKeydown)
-})
-onBeforeUnmount(() => {
-  document.removeEventListener('click', onDocClick)
-  document.removeEventListener('keydown', onDocKeydown)
-})
+// Listen for outside clicks / Escape only while THIS menu is open (not for
+// the card's whole life — every card used to handle every click on the page).
+const listen = (on) => {
+  const fn = on ? 'addEventListener' : 'removeEventListener'
+  document[fn]('click', onDocClick)
+  document[fn]('keydown', onDocKeydown)
+}
+watch(menuOpen, (open) => listen(open))
+onBeforeUnmount(() => listen(false))
 </script>
 
 <template>
@@ -58,10 +61,12 @@ onBeforeUnmount(() => {
       <div class="flex items-start justify-between">
         <div class="flex items-center space-x-3">
           <div :class="[
-            'w-10 h-10 rounded-full flex items-center justify-center text-lg',
-            isCompleted ? 'bg-green-100 dark:bg-green-900/30' : 'bg-primary-100 dark:bg-primary-900/30'
+            'w-12 h-12 shrink-0 rounded-2xl flex items-center justify-center',
+            isCompleted
+              ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'
+              : 'bg-primary-50 text-primary-600 dark:bg-primary-900/30 dark:text-primary-300'
           ]">
-            {{ goal.icon || '🎯' }}
+            <AppIcon :name="goal.icon" fallback="target" size="card" />
           </div>
           <div>
             <h3 class="font-semibold text-gray-900 dark:text-white">{{ goal.name }}</h3>
@@ -92,11 +97,10 @@ onBeforeUnmount(() => {
               class="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               :aria-expanded="menuOpen ? 'true' : 'false'"
               aria-haspopup="menu"
+              :aria-label="t('more_actions')"
               @click.stop="toggleMenu"
             >
-              <svg class="w-4.5 h-4.5" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
-                <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zm8 0a2 2 0 11-4 0 2 2 0 014 0zm6 0a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
+              <AppIcon :icon="Ellipsis" size="button" />
             </button>
             <Transition
               enter-active-class="transition ease-out duration-120"
@@ -116,9 +120,7 @@ onBeforeUnmount(() => {
                   role="menuitem"
                   @click="closeMenu(); emit('edit', goal)"
                 >
-                  <svg class="w-4 h-4 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
+                  <AppIcon :icon="Pencil" size="action" class="text-primary-400" />
                   {{ t('update') }}
                 </button>
                 <div class="h-px bg-gray-100 dark:bg-gray-800 mx-2"></div>
@@ -127,9 +129,7 @@ onBeforeUnmount(() => {
                   role="menuitem"
                   @click="closeMenu(); emit('delete', goal.id)"
                 >
-                  <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
+                  <AppIcon :icon="Trash2" size="action" class="text-red-400" />
                   {{ t('delete') }}
                 </button>
               </div>

@@ -4,6 +4,7 @@ import { useFormat } from '../../composables/useFormat'
 import { useI18n } from 'vue-i18n'
 import BaseButton from '../ui/BaseButton.vue'
 import BaseInput from '../ui/BaseInput.vue'
+import AppIcon from '../ui/AppIcon.vue'
 
 const props = defineProps({
   goal: {
@@ -38,7 +39,9 @@ const setQuickAmount = (percentage) => {
     <!-- Goal Info -->
     <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
       <div class="flex items-center space-x-3 mb-3">
-        <span class="text-2xl">{{ goal.icon || '🎯' }}</span>
+        <div class="w-10 h-10 shrink-0 rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-900/30 dark:text-primary-300 flex items-center justify-center">
+          <AppIcon :name="goal.icon" fallback="target" size="button" />
+        </div>
         <h3 class="font-semibold text-gray-900 dark:text-white">{{ goal.name }}</h3>
       </div>
       <div class="grid grid-cols-2 gap-4 text-sm">

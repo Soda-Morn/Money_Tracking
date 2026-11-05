@@ -3,6 +3,8 @@ import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseButton from '../ui/BaseButton.vue'
 import BaseInput from '../ui/BaseInput.vue'
+import IconPicker from '../ui/IconPicker.vue'
+import { GOAL_ICON_KEYS } from '../../icons'
 
 const emit = defineEmits(['submit', 'cancel'])
 const { t } = useI18n()
@@ -23,7 +25,7 @@ const form = ref({
   targetAmount: props.initialData.targetAmount || '',
   currentAmount: props.initialData.currentAmount || 0,
   deadline: props.initialData.deadline || '',
-  icon: props.initialData.icon || '🎯',
+  icon: props.initialData.icon || 'target',
   priority: props.initialData.priority || 'medium'
 })
 
@@ -31,14 +33,6 @@ const priorityOptions = [
   { value: 'low',    label: 'priority_low' },
   { value: 'medium', label: 'priority_medium' },
   { value: 'high',   label: 'priority_high' },
-]
-
-// Expanded icon set — 40 options
-const icons = [
-  '🎯', '🏠', '🚗', '✈️', '📱', '💻', '🎓', '💍', '🎉', '💰',
-  '🏋️', '🌴', '🎸', '📷', '🏄', '🚀', '🎨', '🌎', '🐶', '🎮',
-  '💎', '🏆', '🌟', '🔑', '⚡', '🌈', '🍀', '🦋', '🎪', '🛳️',
-  '🏡', '🛵', '🎹', '🤿', '🧳', '🛍️', '🎂', '🌺', '🦄', '🔥'
 ]
 
 const isValid = computed(() => {
@@ -60,35 +54,7 @@ const handleSubmit = () => {
     <!-- Icon Selection -->
     <div class="space-y-2">
       <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('icon_label') }}</label>
-
-      <!-- Preset icons grid (scrollable) -->
-      <div class="flex flex-wrap gap-2 max-h-36 overflow-y-auto p-1 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-        <button
-          v-for="icon in icons"
-          :key="icon"
-          type="button"
-          :class="[
-            'w-10 h-10 rounded-lg text-xl transition-colors flex items-center justify-center',
-            form.icon === icon
-              ? 'bg-primary-100 dark:bg-primary-900/50 ring-2 ring-primary-500'
-              : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600'
-          ]"
-          @click="form.icon = icon"
-        >
-          {{ icon }}
-        </button>
-      </div>
-
-      <!-- Custom emoji input -->
-      <div class="flex items-center gap-3">
-        <span class="text-sm text-gray-500 dark:text-gray-400">{{ t('or_type_custom_icon') }}</span>
-        <input
-          v-model="form.icon"
-          maxlength="2"
-          class="w-14 h-10 text-center text-2xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-          placeholder="😀"
-        />
-      </div>
+      <IconPicker v-model="form.icon" :options="GOAL_ICON_KEYS" :label="t('icon_label')" />
     </div>
 
     <!-- Name -->

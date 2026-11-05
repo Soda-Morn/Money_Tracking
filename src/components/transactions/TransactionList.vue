@@ -43,20 +43,20 @@ const groupedTransactions = computed(() => {
       icon="folder"
     />
 
-    <div v-else class="space-y-6">
-      <div v-for="group in groupedTransactions" :key="group.date">
+    <div v-else class="space-y-5">
+      <section v-for="group in groupedTransactions" :key="group.date">
         <!-- Date Header -->
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">
+        <div class="flex items-center justify-between gap-3 mb-1.5 px-1">
+          <h3 class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 truncate">
             {{ formatRelativeDate(group.date) }}
           </h3>
-          <span class="text-xs text-gray-400 dark:text-gray-500">
+          <span class="shrink-0 text-xs text-gray-400 dark:text-gray-500 tabular">
             {{ group.items.length }} {{ group.items.length > 1 ? t('transactions') : t('transaction') }}
           </span>
         </div>
 
         <!-- Transaction Items -->
-        <div class="space-y-2">
+        <div class="space-y-1">
           <TransactionItem
             v-for="transaction in group.items"
             :key="transaction.id"
@@ -66,7 +66,7 @@ const groupedTransactions = computed(() => {
             @delete="emit('delete', $event)"
           />
         </div>
-      </div>
+      </section>
     </div>
   </div>
 </template>

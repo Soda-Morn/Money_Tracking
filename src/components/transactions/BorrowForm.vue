@@ -2,8 +2,11 @@
 import { ref, computed } from 'vue'
 import { useFormat } from '../../composables/useFormat'
 import { useI18n } from 'vue-i18n'
+import { HandCoins, Undo2 } from 'lucide-vue-next'
 import BaseButton from '../ui/BaseButton.vue'
 import BaseInput from '../ui/BaseInput.vue'
+import AmountInput from '../ui/AmountInput.vue'
+import SegmentedControl from '../ui/SegmentedControl.vue'
 
 const emit = defineEmits(['submit', 'cancel'])
 const { t } = useI18n()
@@ -14,6 +17,11 @@ const props = defineProps({
     default: () => ({})
   },
   isEditing: {
+    type: Boolean,
+    default: false
+  },
+  // Parent sets this while the save request is in flight
+  saving: {
     type: Boolean,
     default: false
   }
@@ -29,81 +37,80 @@ const form = ref({
   date: props.initialData.date || getCurrentDate()
 })
 
+const typeOptions = computed(() => [
+  { value: 'borrow', label: t('borrow'), icon: HandCoins, activeClass: 'text-primary-600 dark:text-primary-300' },
+  { value: 'payback', label: t('payback'), icon: Undo2, activeClass: 'text-tertiary-600 dark:text-tertiary-300' },
+])
+
 // Name is required (not just cosmetic) — records with no name are unreachable
 // in the Active Balances list, which groups and filters entirely by name.
 const isValid = computed(() => form.value.amount > 0 && form.value.date && form.value.name.trim().length > 0)
 
+// Validation messages appear only after the first save attempt
+const attempted = ref(false)
+const amountError = computed(() => attempted.value && !(form.value.amount > 0) ? t('error_amount_required') : '')
+const nameError = computed(() => attempted.value && !form.value.name.trim() ? t('error_name_required') : '')
+
 const handleSubmit = () => {
+  attempted.value = true
   if (!isValid.value) return
   emit('submit', { ...form.value, amount: Number(form.value.amount) })
 }
 </script>
 
 <template>
-  <form @submit.prevent="handleSubmit" class="space-y-4">
-    <!-- Type Selection -->
-    <div class="grid grid-cols-2 gap-2 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
-      <button
-        type="button"
-        :class="[
-          'py-2 px-4 rounded-md font-medium transition-colors',
-          form.type === 'borrow'
-            ? 'bg-white dark:bg-gray-600 text-green-600 shadow-sm'
-            : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-        ]"
-        @click="form.type = 'borrow'"
-      >
-        {{ t('borrow') }}
-      </button>
-      <button
-        type="button"
-        :class="[
-          'py-2 px-4 rounded-md font-medium transition-colors',
-          form.type === 'payback'
-            ? 'bg-white dark:bg-gray-600 text-red-600 shadow-sm'
-            : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-        ]"
-        @click="form.type = 'payback'"
-      >
-        {{ t('payback') }}
-      </button>
-    </div>
+  <form @submit.prevent="handleSubmit" class="space-y-5" novalidate>
+    <!-- Borrow / Payback -->
+    <SegmentedControl
+      v-model="form.type"
+      :options="typeOptions"
+      :label="t('add_borrow_payback')"
+    />
 
+    <!-- Amount (hero field) -->
+    <AmountInput
+      v-model="form.amount"
+      :label="form.type === 'borrow' ? t('borrow_amount') : t('payback_amount')"
+      tone="neutral"
+      :error="amountError"
+      :autofocus="!isEditing"
+    />
+
+    <!-- Person -->
+    <BaseInput
+      v-model="form.name"
+      :label="t('name')"
+      placeholder="e.g., John Doe"
+      :required="true"
+      :error="nameError"
+      autocomplete="name"
+      enterkeyhint="next"
+    />
+
+    <!-- Date + note -->
     <div class="grid gap-4 sm:grid-cols-2">
       <BaseInput
-        v-model="form.name"
-        :label="t('name')"
-        placeholder="e.g., John Doe"
+        v-model="form.date"
+        type="date"
+        :label="t('date')"
         :required="true"
       />
       <BaseInput
-        v-model="form.amount"
-        type="number"
-        :label="form.type === 'borrow' ? t('borrow_amount') : t('payback_amount')"
-        placeholder="0.00"
-        :required="true"
+        v-model="form.description"
+        :label="t('note_optional')"
+        :placeholder="t('description_placeholder')"
+        maxlength="120"
+        enterkeyhint="done"
       />
     </div>
 
-    <BaseInput
-      v-model="form.description"
-      :label="t('description')"
-      :placeholder="t('description_placeholder')"
-    />
-
-    <BaseInput
-      v-model="form.date"
-      type="date"
-      :label="t('date')"
-      :required="true"
-    />
-
-    <div class="flex gap-3 pt-2">
-      <BaseButton type="button" variant="secondary" @click="emit('cancel')" full-width>
+    <!-- Actions: primary action first on mobile (closest to the thumb) -->
+    <div class="flex flex-col-reverse sm:flex-row gap-2.5 pt-1">
+      <BaseButton type="button" variant="ghost" size="lg" full-width :disabled="saving" @click="emit('cancel')">
         {{ t('cancel') }}
       </BaseButton>
-      <BaseButton type="submit" :disabled="!isValid" full-width>
-        {{ isEditing ? t('update') : t('add') }}
+      <BaseButton type="submit" size="lg" full-width :loading="saving">
+        {{ isEditing ? t('save_changes') : t('save_transaction') }}
       </BaseButton>
     </div>
   </form>

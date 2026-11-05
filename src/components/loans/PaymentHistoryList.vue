@@ -8,7 +8,8 @@ import { Pencil, Trash2 } from 'lucide-vue-next'
 
 const props = defineProps({
   loan: { type: Object, required: true },
-  payments: { type: Array, default: () => [] } // this loan's payments, any order
+  payments: { type: Array, default: () => [] }, // this loan's payments, any order
+  readonly: { type: Boolean, default: false }   // paid-off loans: view only
 })
 
 const emit = defineEmits(['edit', 'delete'])
@@ -44,10 +45,10 @@ const rows = computed(() => {
       </div>
       <div class="flex items-center gap-1 shrink-0">
         <span class="text-sm font-semibold text-primary-600 dark:text-primary-400 mr-1">−{{ formatCurrency(row.amount) }}</span>
-        <button class="p-1.5 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 rounded-lg transition-colors" :title="t('update')" :aria-label="t('update')" @click="emit('edit', row)">
+        <button v-if="!readonly" class="p-1.5 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 rounded-lg transition-colors" :title="t('update')" :aria-label="t('update')" @click="emit('edit', row)">
           <AppIcon :icon="Pencil" size="action" />
         </button>
-        <button class="p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded-lg transition-colors" :title="t('delete')" :aria-label="t('delete')" @click="emit('delete', row)">
+        <button v-if="!readonly" class="p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded-lg transition-colors" :title="t('delete')" :aria-label="t('delete')" @click="emit('delete', row)">
           <AppIcon :icon="Trash2" size="action" />
         </button>
       </div>

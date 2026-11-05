@@ -19,5 +19,5 @@ export function useToast() {
     toasts.value = toasts.value.filter(t => t.id !== id)
   }
 
-  return { toasts, success, error, info, remove }
+  return { toasts, show, success, error, info, remove }
 }

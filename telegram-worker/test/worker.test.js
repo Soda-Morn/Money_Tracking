@@ -920,3 +920,82 @@ test('recent: Latest 10 is still one tap away', async () => {
   await say(142, '/recent')
   assert.match(await tap(142, 'm:latest'), /Latest 4/)
 })
+
+// ── Daily / weekly spending limits ────────────────────────────────────────────
+function seedLimitUser(uid, limits) {
+  fx.seed(`users/${uid}/categories/c1`, { type: 'expense', label: 'Food', icon: 'utensils', value: 'food_1' })
+  fx.seed(`users/${uid}/categories/c3`, { type: 'expense', label: 'Transport', icon: 'car', value: 'transport_3' })
+  fx.seed(`users/${uid}/settings/spendingLimits`, limits)
+}
+const runCron = async () => {
+  const waits = []
+  await worker.scheduled({}, env, { waitUntil: (p) => waits.push(p) })
+  await Promise.all(waits)
+}
+const sentTo = (chatId) => fx.telegram.filter((c) => c.method === 'sendMessage' && String(c.body.chat_id) === String(chatId) && !c.viaWebhookResponse && /limit/i.test(c.body.text)).map((c) => c.body.text)
+
+test('limits: a save shows what is left, alerts once at 80 %, then again when over', async () => {
+  seedLimitUser('lia', { day: { total: null, categories: { food_1: 10 } }, week: { total: 50 } })
+  await link(150, 'lia')
+  const first = await say(150, '5 food')
+  assert.match(first, /Saved/)
+  assert.match(first, /Food today: \$5\.00 left of \$10\.00/)
+  assert.match(first, /All spending this week: \$45\.00 left of \$50\.00/)
+  assert.match(await say(150, '3.5 food'), /80% of your limit used.*Food today: \$1\.50 left|85% of your limit used.*Food today/s)
+  const quiet = await say(150, '0.5 food')
+  assert.doesNotMatch(quiet, /limit used/, 'warn is not repeated the same day')
+  assert.match(quiet, /Food today: \$1\.00 left/)
+  assert.match(await say(150, '2 food'), /Over your limit.*Food today: spent \$11\.00 of \$10\.00/s)
+  assert.deepEqual(fx.read('users/lia/settings/limitAlerts').keys.sort(), [`day:${today()}:food_1:over`, `day:${today()}:food_1:warn`])
+  // Income and other categories don't count towards the Food limit
+  assert.doesNotMatch(await say(150, '+100 salary'), /limit/i)
+})
+
+test('limits: /today shows daily limits and /budget shows daily & weekly ones', async () => {
+  seedLimitUser('lia', { day: { total: 10 }, week: { categories: { transport_3: 20 } } })
+  fx.seed('users/lia/transactions/x1', { type: 'expense', amount: 4, category: 'transport_3', description: '', date: today(), createdAt: new Date().toISOString() })
+  await link(151, 'lia')
+  const day = await say(151, '/today')
+  assert.match(day, /Daily limits[\s\S]*All spending today: \$6\.00 left of \$10\.00/)
+  assert.doesNotMatch(day, /this week/)
+  const budget = await say(151, '/budget')
+  assert.match(budget, /Daily & weekly limits/)
+  assert.match(budget, /Transport this week: \$16\.00 left of \$20\.00/)
+})
+
+test('limits cron: alerts for app-added expenses once, only for verified users with alerts on', async () => {
+  seedLimitUser('lia', { day: { total: 10 } })
+  await link(152, 'lia')
+  // Added in the APP (no bot reply happened)
+  fx.seed('users/lia/transactions/app1', { type: 'expense', amount: 12, category: 'food_1', description: '', date: today(), createdAt: new Date().toISOString() })
+  // A forged link to the same account must never receive anything
+  fx.seed('telegramLinks/666', { uid: 'lia', sig: 'f'.repeat(64) })
+
+  await runCron()
+  assert.equal(sentTo(152).length, 1)
+  assert.match(sentTo(152)[0], /Over your limit.*All spending today: spent \$12\.00 of \$10\.00/s)
+  assert.equal(sentTo(666).length, 0)
+
+  await runCron()
+  assert.equal(sentTo(152).length, 1, 'not sent twice')
+
+  // Alerts switched off in ⚙️ Settings → nothing new is sent
+  assert.match(await tap(152, 'lal:off'), /Limit alerts:<\/b> 🔕 off/)
+  fx.seed('users/lia/settings/spendingLimits', { day: { total: 10 }, week: { total: 5 } })
+  await runCron()
+  assert.equal(sentTo(152).length, 1)
+  assert.match(await tap(152, 'lal:on'), /Limit alerts:<\/b> 🔔 on/)
+  await runCron()
+  assert.equal(sentTo(152).length, 2)
+  assert.match(sentTo(152)[1], /this week/)
+})
+
+test('limits with dates: the bot only counts them between those dates', async () => {
+  const far = '2099-01-01'
+  seedLimitUser('lia', { day: { categories: { food_1: 10, transport_3: 5 }, dates: { food_1: { from: today(), to: far }, transport_3: { from: far } } } })
+  await link(153, 'lia')
+  const saved = await say(153, '5 food')
+  assert.match(saved, /Food today: \$5\.00 left of \$10\.00 <i>\(until Jan 1\)<\/i>/)
+  const day = await say(153, '/today')
+  assert.doesNotMatch(day, /Transport/, 'a limit that has not started is not shown')
+})

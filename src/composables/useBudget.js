@@ -84,5 +84,13 @@ export function useBudget() {
     await persist()
   }
 
-  return { budgets, setBudget, setCategoryBudget, removeCategoryBudget, removeBudget }
+  /** Copy one month's whole budget (total + category budgets) to another month. */
+  const copyBudget = async (fromKey, toKey) => {
+    const src = budgets.value[fromKey]
+    if (!src) return
+    budgets.value = { ...budgets.value, [toKey]: { total: src.total ?? 0, categories: { ...(src.categories ?? {}) } } }
+    await persist()
+  }
+
+  return { budgets, setBudget, setCategoryBudget, removeCategoryBudget, removeBudget, copyBudget }
 }

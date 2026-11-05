@@ -18,5 +18,10 @@ preview_urls = false
 # Used when the linking browser didn't report a timezone
 DEFAULT_TIMEZONE = "Asia/Phnom_Penh"
 
+# Spending-limit alerts for expenses added in the app (free plan allows cron).
+# Every 30 min keeps Firestore reads low; saves made in the bot alert instantly.
+[triggers]
+crons = ["*/30 * * * *"]
+
 [observability]
 enabled = true

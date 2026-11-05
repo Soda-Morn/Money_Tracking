@@ -13,7 +13,7 @@ import LoanPaymentForm from '../components/loans/LoanPaymentForm.vue'
 import PaymentHistoryList from '../components/loans/PaymentHistoryList.vue'
 import RepaymentScheduleTable from '../components/loans/RepaymentScheduleTable.vue'
 import AppIcon from '../components/ui/AppIcon.vue'
-import { ArrowLeft, PartyPopper, Clock, Lightbulb, Trash2 } from 'lucide-vue-next'
+import { ArrowLeft, PartyPopper, Clock, Lightbulb, Trash2, Lock } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
@@ -61,6 +61,7 @@ const insight = computed(() => {
 // ── Edit Loan ──────────────────────────────────────────────────────────────────
 const showEditModal = ref(false)
 const handleEditLoan = async (data) => {
+  if (isPaidOff.value) return // paid-off loans are view only
   try {
     await updateLoan(loan.value.id, data)
     showEditModal.value = false
@@ -90,10 +91,12 @@ const showPaymentModal = ref(false)
 const editingPayment = ref(null)
 
 const openMakePayment = () => {
+  if (isPaidOff.value) return
   editingPayment.value = null
   showPaymentModal.value = true
 }
 const openEditPayment = (payment) => {
+  if (isPaidOff.value) return
   editingPayment.value = payment
   showPaymentModal.value = true
 }
@@ -118,6 +121,7 @@ const handlePaymentSubmit = async (data) => {
 const showDeletePaymentDialog = ref(false)
 const deletingPayment = ref(null)
 const requestDeletePayment = (payment) => {
+  if (isPaidOff.value) return
   deletingPayment.value = payment
   showDeletePaymentDialog.value = true
 }
@@ -199,10 +203,14 @@ const confirmDeletePayment = async () => {
           </div>
         </div>
 
-        <div class="flex gap-3 mt-4">
-          <BaseButton v-if="!isPaidOff" full-width @click="openMakePayment">{{ t('make_payment') }}</BaseButton>
+        <div v-if="!isPaidOff" class="flex gap-3 mt-4">
+          <BaseButton full-width @click="openMakePayment">{{ t('make_payment') }}</BaseButton>
           <BaseButton variant="secondary" full-width @click="showEditModal = true">{{ t('edit_loan') }}</BaseButton>
         </div>
+        <!-- Paid off: view only -->
+        <p v-else class="mt-4 flex items-center gap-2 rounded-xl bg-gray-50 dark:bg-gray-700/40 px-3 py-2.5 text-sm text-gray-600 dark:text-gray-300">
+          <AppIcon :icon="Lock" size="action" class="shrink-0 text-gray-400" />{{ t('loan_readonly_note') }}
+        </p>
       </BaseCard>
 
       <!-- Insight -->
@@ -221,7 +229,7 @@ const confirmDeletePayment = async () => {
       <!-- Payment History -->
       <BaseCard>
         <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-3">{{ t('payment_history') }}</h2>
-        <PaymentHistoryList :loan="loan" :payments="payments" @edit="openEditPayment" @delete="requestDeletePayment" />
+        <PaymentHistoryList :loan="loan" :payments="payments" :readonly="isPaidOff" @edit="openEditPayment" @delete="requestDeletePayment" />
       </BaseCard>
 
       <!-- Repayment Schedule -->
@@ -230,8 +238,9 @@ const confirmDeletePayment = async () => {
         <RepaymentScheduleTable :schedule="schedule" />
       </BaseCard>
 
-      <!-- Delete Loan -->
+      <!-- Delete Loan (not for paid-off loans — they're view only) -->
       <button
+        v-if="!isPaidOff"
         class="w-full inline-flex items-center justify-center gap-1.5 py-2.5 text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors"
         @click="showDeleteLoanDialog = true"
       >

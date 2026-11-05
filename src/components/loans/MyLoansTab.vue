@@ -12,13 +12,14 @@ import LoanCard from './LoanCard.vue'
 import LoanForm from './LoanForm.vue'
 import LoanPaymentForm from './LoanPaymentForm.vue'
 import AppIcon from '../ui/AppIcon.vue'
-import { Plus, ChevronDown, PartyPopper, Archive } from 'lucide-vue-next'
+import SegmentedControl from '../ui/SegmentedControl.vue'
+import { Plus } from 'lucide-vue-next'
 
 const { t } = useI18n()
 const { formatCurrency } = useFormat()
 const toast = useToast()
 const {
-  activeLoans, completedLoans, addLoan, addPayment, archiveLoan,
+  activeLoans, completedLoans, archivedLoans, addLoan, addPayment,
   getRemainingBalance, getNextPaymentDate, getEstimatedPayoffDate,
   totalOriginalDebt, totalPaidAll, totalRemainingAll, activeLoanCount, totalMonthlyPayments
 } = useLoans()
@@ -33,8 +34,33 @@ const SORT_OPTIONS = [
 ]
 const sortBy = ref('remaining_desc')
 
+// ── Filter: Pending (default) | Completed | All ───────────────────────────────
+// Paid-off loans keep their card (marked "Paid off"); loans archived in older
+// versions of the app are paid off too, so they show under Completed again.
+const filter = ref('pending')
+const paidOffLoans = computed(() => [
+  ...completedLoans.value,
+  ...archivedLoans.value.filter((l) => getRemainingBalance(l) <= 0),
+])
+const filterOptions = computed(() => [
+  { value: 'pending', label: `${t('loan_filter_pending')} · ${activeLoans.value.length}` },
+  { value: 'completed', label: `${t('completed')} · ${paidOffLoans.value.length}` },
+  { value: 'all', label: t('all') },
+])
+
 const sortedActiveLoans = computed(() => {
-  const list = [...activeLoans.value]
+  const list = filter.value === 'pending' ? [...activeLoans.value]
+    : filter.value === 'completed' ? [...paidOffLoans.value]
+      : [...activeLoans.value, ...paidOffLoans.value]
+  // "All": pending loans first, paid-off ones after them
+  if (filter.value === 'all') {
+    const done = (l) => (getRemainingBalance(l) <= 0 ? 1 : 0)
+    return sortList(list).sort((a, b) => done(a) - done(b))
+  }
+  return sortList(list)
+})
+
+function sortList(list) {
   switch (sortBy.value) {
     case 'remaining_asc':  return list.sort((a, b) => getRemainingBalance(a) - getRemainingBalance(b))
     case 'next_payment':   return list.sort((a, b) => getNextPaymentDate(a) - getNextPaymentDate(b))
@@ -42,7 +68,7 @@ const sortedActiveLoans = computed(() => {
     case 'recent':         return list.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))
     default:                return list.sort((a, b) => getRemainingBalance(b) - getRemainingBalance(a)) // remaining_desc
   }
-})
+}
 
 // ── Add Loan ─────────────────────────────────────────────────────────────────
 const showAddModal = ref(false)
@@ -78,17 +104,6 @@ const handlePaymentSubmit = async (data) => {
   }
 }
 
-// ── Completed loans ────────────────────────────────────────────────────────────
-const showCompleted = ref(false)
-const handleArchive = async (id) => {
-  try {
-    await archiveLoan(id, true)
-    toast.success(t('toast_loan_archived'))
-  } catch (e) {
-    console.error('[loans] archiveLoan failed:', e)
-    toast.error(t('toast_loan_error'))
-  }
-}
 </script>
 
 <template>
@@ -124,12 +139,16 @@ const handleArchive = async (id) => {
       {{ t('add_loan') }}
     </button>
 
-    <!-- Active Loans -->
-    <div>
-      <div class="flex items-center justify-between mb-2 px-0.5">
-        <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{{ t('active_loans') }}</h3>
+    <!-- Loans: filter (Pending by default) + sort -->
+    <div class="space-y-3">
+      <SegmentedControl v-model="filter" :options="filterOptions" :label="t('loan_filter_label')" />
+      <div class="flex items-center justify-between px-0.5">
+        <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+          {{ filter === 'pending' ? t('active_loans') : filter === 'completed' ? t('completed_loans') : t('loan_filter_all_loans') }}
+        </h3>
         <select
           v-model="sortBy"
+          :aria-label="t('loan_sort_label')"
           class="text-xs px-2 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
         >
           <option v-for="opt in SORT_OPTIONS" :key="opt.value" :value="opt.value">{{ t(opt.label) }}</option>
@@ -137,37 +156,24 @@ const handleArchive = async (id) => {
       </div>
 
       <BaseCard v-if="sortedActiveLoans.length === 0">
-        <EmptyState :title="t('no_loans_title')" :description="t('no_loans_desc')" icon="folder" />
+        <EmptyState
+          v-if="filter === 'completed'"
+          :title="t('loan_none_completed_title')"
+          :description="t('loan_none_completed_desc')"
+          icon="trophy"
+        />
+        <EmptyState
+          v-else-if="filter === 'pending' && paidOffLoans.length"
+          :title="t('loan_all_paid_title')"
+          :description="t('loan_all_paid_desc')"
+          icon="party-popper"
+        />
+        <EmptyState v-else :title="t('no_loans_title')" :description="t('no_loans_desc')" icon="folder" />
       </BaseCard>
       <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-3">
         <LoanCard v-for="loan in sortedActiveLoans" :key="loan.id" :loan="loan" @make-payment="openPaymentModal" />
       </div>
     </div>
-
-    <!-- Completed Loans -->
-    <BaseCard v-if="completedLoans.length > 0" padding="p-0">
-      <button class="w-full flex items-center justify-between px-4 py-3 text-left" @click="showCompleted = !showCompleted">
-        <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('completed_loans') }} ({{ completedLoans.length }})</span>
-        <AppIcon :icon="ChevronDown" size="action" class="text-gray-400 transition-transform duration-200" :class="showCompleted ? 'rotate-180' : ''" />
-      </button>
-      <div v-if="showCompleted" class="divide-y divide-gray-100 dark:divide-gray-700 border-t border-gray-100 dark:border-gray-700">
-        <div v-for="loan in completedLoans" :key="loan.id" class="flex items-center justify-between px-4 py-3">
-          <div class="flex items-center gap-2">
-            <div class="w-9 h-9 shrink-0 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 flex items-center justify-center">
-              <AppIcon :icon="PartyPopper" size="button" />
-            </div>
-            <div>
-              <p class="text-sm font-medium text-gray-900 dark:text-white">{{ t('loan_from', { name: loan.lenderName }) }}</p>
-              <p class="text-xs text-green-600 dark:text-green-400">{{ t('paid_off') }}</p>
-            </div>
-          </div>
-          <button class="inline-flex items-center gap-1 text-xs font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200" @click="handleArchive(loan.id)">
-            <AppIcon :icon="Archive" size="xs" />
-            {{ t('archive') }}
-          </button>
-        </div>
-      </div>
-    </BaseCard>
 
     <!-- Add Loan Modal -->
     <BaseModal :show="showAddModal" :title="t('add_loan')" @close="showAddModal = false">

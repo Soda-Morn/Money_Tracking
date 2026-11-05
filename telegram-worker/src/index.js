@@ -11,6 +11,8 @@ import { createData } from './firebase/data.js'
 import { createTelegram } from './telegram/api.js'
 import { handleUpdate } from './telegram/commands.js'
 import { safeEqual } from './security/crypto.js'
+import { verifiedLinkUid } from './security/linking.js'
+import { runLimitAlerts } from './telegram/limits.js'
 import { ERRORS } from './telegram/messages.js'
 
 const MAX_BODY_BYTES = 256 * 1024
@@ -26,6 +28,21 @@ const cleanEnv = (env) => Object.fromEntries(
 )
 
 export default {
+  /**
+   * Cron (wrangler.toml [triggers]): spending-limit alerts for expenses added in
+   * the app. Only HMAC-verified, still-connected users are messaged.
+   */
+  async scheduled(_event, rawEnv, execCtx) {
+    const env = cleanEnv(rawEnv)
+    if (REQUIRED.some((k) => !env[k])) return
+    const fs = createFirestore(env)
+    const deps = { env, fs, data: createData(fs), tg: createTelegram(env) }
+    execCtx.waitUntil(
+      runLimitAlerts(deps, (id, link) => verifiedLinkUid(fs, env, id, link))
+        .catch((e) => console.error(JSON.stringify({ event: 'limit_alerts_failed', error: e?.message?.slice(0, 120) })))
+    )
+  },
+
   async fetch(request, rawEnv, execCtx) {
     const env = cleanEnv(rawEnv)
     const url = new URL(request.url)

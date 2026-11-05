@@ -36,8 +36,9 @@ const remember = (id, uid) => {
   linkCache.set(id, { uid, at: Date.now() })
 }
 
-async function verifiedLinkUid(fs, env, id) {
-  const link = await fs.get(`telegramLinks/${id}`)
+/** uid of a telegramLinks doc ONLY if its HMAC signature is valid (pass `link` to skip the read). */
+export async function verifiedLinkUid(fs, env, id, link) {
+  if (link === undefined) link = await fs.get(`telegramLinks/${id}`)
   if (!link?.uid || !link.sig) return null
   if (!safeEqual(link.sig, await signLink(env, id, link.uid))) {
     console.warn(JSON.stringify({ event: 'link_signature_mismatch' }))

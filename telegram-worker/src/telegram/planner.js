@@ -21,6 +21,7 @@ import { categoryInfo } from '../../../src/shared/categories.js'
 import { PreconditionError } from '../firebase/client.js'
 import { parseAmount } from '../security/validation.js'
 import { guessCategory } from './guess.js'
+import { afterExpense } from './limits.js'
 import { esc, money, monthTitle, shortMonth, catEmoji, dayBefore, ERRORS } from './messages.js'
 
 export const PLAN_ID_RE = /^[A-Za-z0-9_-]{1,58}$/
@@ -271,10 +272,13 @@ export async function confirmPay(ctx, id) {
   await endSession(ctx)
   console.log(JSON.stringify({ event: 'plan_paid' }))
   const diff = Number(plan.amount) - Number(s.amount)
+  // Daily / weekly limit status (and any alert this payment triggers)
+  const [limitsDoc, cats] = await Promise.all([ctx.data.spendingLimits(ctx.uid), ctx.data.categories(ctx.uid, 'expense')])
+  const limitText = await afterExpense(ctx, { type: 'expense', category: plan.category }, cats, limitsDoc).catch(() => '')
   return ctx.show(
     `✅ <b>Paid</b> — ${esc(plan.name)} · ${money(s.amount, ctx.currency)}` +
     (diff ? ` <i>(planned ${money(plan.amount, ctx.currency)})</i>` : '') +
-    `\n<i>Added to your transactions and balance.</i>`,
+    `\n<i>Added to your transactions and balance.</i>${limitText}`,
     { inline_keyboard: [[btn('↩️ Undo payment', `pu:${plan.id}`), btn('🗓 Back to plan', `pl:${plan.month}`)]] }
   )
 }

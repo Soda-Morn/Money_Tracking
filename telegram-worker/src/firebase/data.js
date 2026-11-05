@@ -111,6 +111,13 @@ export function createData(fs) {
     },
     preferences: async (uid) => (await fs.get(`users/${uid}/settings/preferences`)) || {},
 
+    // ── Daily / weekly spending limits (written by the app) ──────────────────
+    spendingLimits: (uid) => fs.get(`users/${uid}/settings/spendingLimits`),
+    /** Keys of limit alerts already sent (see src/shared/limits.js#alertKey). */
+    limitAlertKeys: async (uid) => (await fs.get(`users/${uid}/settings/limitAlerts`))?.keys || [],
+    saveLimitAlertKeys: (uid, keys) =>
+      fs.commit([{ set: `users/${uid}/settings/limitAlerts`, data: { keys, updatedAt: new Date().toISOString() } }]),
+
     // ── Conversation sessions (one per Telegram user) ────────────────────────
     getSession: (tgId) => fs.get(`telegramSessions/${tgId}`),
     setSession: (tgId, data) => fs.commit([{ set: `telegramSessions/${tgId}`, data }]),

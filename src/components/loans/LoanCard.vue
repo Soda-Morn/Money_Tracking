@@ -41,13 +41,23 @@ const viewDetails = () => router.push(`/loans/${props.loan.id}`)
 </script>
 
 <template>
-  <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
-    <!-- Header -->
-    <div class="p-4 border-b border-gray-100 dark:border-gray-700">
+  <div
+    :class="[
+      'bg-white dark:bg-gray-800 rounded-2xl border shadow-sm overflow-hidden hover:shadow-md transition-shadow',
+      isPaidOff ? 'border-emerald-200 dark:border-emerald-800/60' : 'border-gray-100 dark:border-gray-700'
+    ]"
+  >
+    <!-- Header (green tint once the loan is paid off) -->
+    <div :class="['p-4 border-b', isPaidOff ? 'bg-emerald-50/70 dark:bg-emerald-900/15 border-emerald-100 dark:border-emerald-800/50' : 'border-gray-100 dark:border-gray-700']">
       <div class="flex items-start justify-between gap-2">
         <div class="flex items-center gap-2.5 min-w-0">
-          <div class="w-9 h-9 shrink-0 bg-primary-100 dark:bg-primary-900/40 rounded-full flex items-center justify-center text-primary-600 dark:text-primary-400">
-            <AppIcon :icon="Landmark" size="button" />
+          <div
+            :class="[
+              'w-9 h-9 shrink-0 rounded-full flex items-center justify-center',
+              isPaidOff ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400' : 'bg-primary-100 dark:bg-primary-900/40 text-primary-600 dark:text-primary-400'
+            ]"
+          >
+            <AppIcon :icon="isPaidOff ? CircleCheck : Landmark" size="button" />
           </div>
           <h3 class="font-semibold text-gray-900 dark:text-white truncate">{{ t('loan_from', { name: loan.lenderName }) }}</h3>
         </div>
@@ -76,7 +86,7 @@ const viewDetails = () => router.push(`/loans/${props.loan.id}`)
       <div>
         <div class="h-2.5 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">
           <div
-            class="h-full rounded-full bg-primary-600 transition-all duration-500"
+            :class="['h-full rounded-full transition-all duration-500', isPaidOff ? 'bg-emerald-500' : 'bg-primary-600']"
             :style="{ width: Math.min(100, progressPct) + '%' }"
           />
         </div>

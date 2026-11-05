@@ -7,6 +7,10 @@
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useUserPreferences } from '../../composables/useUserPreferences'
+import { useLimitAlerts } from '../../composables/useSpendingLimits'
+import { useCategories } from '../../composables/useCategories'
+import { useFormat } from '../../composables/useFormat'
+import { useToast } from '../../composables/useToast'
 import { prefetchMainRoutes } from '../../router'
 import Navbar from './Navbar.vue'
 import MobileNav from './MobileNav.vue'
@@ -14,7 +18,20 @@ import MobileHeader from './MobileHeader.vue'
 import ToastContainer from '../ui/ToastContainer.vue'
 import QuickAddSheet from '../transactions/QuickAddSheet.vue'
 
-const { locale } = useI18n()
+const { locale, t } = useI18n()
+
+// Daily / weekly limit alerts (80 % and 100 %) — once per limit per level per period
+const toast = useToast()
+const { getCategoryInfo } = useCategories()
+const { formatCurrency } = useFormat()
+useLimitAlerts((row) => {
+  const name = row.scope === 'total' ? t('limits.total') : getCategoryInfo(row.scope, 'expense').label
+  const when = row.period === 'day' ? t('limits.today') : t('limits.this_week')
+  const msg = row.level === 'over'
+    ? t('limits.alert_over', { name, when, spent: formatCurrency(row.spent), limit: formatCurrency(row.limit) })
+    : t('limits.alert_warn', { name, when, pct: row.pct, left: formatCurrency(row.remaining) })
+  toast.show(msg, row.level === 'over' ? 'error' : 'info', 7000)
+})
 
 // Sync theme + locale + currency with Firebase so they restore after clearing app data
 useUserPreferences()

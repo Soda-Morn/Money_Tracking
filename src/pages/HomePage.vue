@@ -19,6 +19,7 @@ import TransactionItem from '../components/transactions/TransactionItem.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
 import AppIcon from '../components/ui/AppIcon.vue'
 import UpcomingSpending from '../components/planner/UpcomingSpending.vue'
+import LimitsSummary from '../components/budget/LimitsSummary.vue'
 import {
   TrendingUp, TrendingDown, ShieldCheck, HandCoins, Target, ChevronDown, ChevronRight, PiggyBank, Plus,
 } from 'lucide-vue-next'
@@ -315,6 +316,11 @@ const quickActions = computed(() => [
             </div>
           </template>
         </BaseCard>
+      </section>
+
+      <!-- Daily / weekly spending limits (always shown — a small prompt when none are set) -->
+      <section class="reveal lg:col-start-3" :style="{ '--i': 3 }">
+        <LimitsSummary />
       </section>
 
       <!-- ④ Recent transactions -->

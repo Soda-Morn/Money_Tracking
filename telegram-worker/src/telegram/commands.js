@@ -20,6 +20,7 @@ import { PreconditionError } from '../firebase/client.js'
 import * as kb from './keyboards.js'
 import { guessCategory } from './guess.js'
 import * as plan from './planner.js'
+import { afterExpense, limitLines, alertsOn } from './limits.js'
 import { addMonths } from '../../../src/shared/planner.js'
 import {
   esc, money, signedMoney, longDate, monthTitle, todayIn, dayBefore, catEmoji,
@@ -316,9 +317,10 @@ async function beginAdd(ctx, type) {
  * re-delivered update can never create a second transaction.
  */
 async function instantSave(ctx, type, amount, words) {
-  const [cats, history] = await Promise.all([
+  const [cats, history, limitsDoc] = await Promise.all([
     ctx.data.categories(ctx.uid, type),
     ctx.data.historyForGuess(ctx.uid),
+    type === 'expense' ? ctx.data.spendingLimits(ctx.uid) : null,
   ])
   if (!cats.length) return ctx.show(noCategoriesText(type))
   const g = guessCategory({ type, words, categories: cats, history })
@@ -345,10 +347,11 @@ async function instantSave(ctx, type, amount, words) {
   }
   if (ctx.session) await endSession(ctx) // a started guided add is now complete
   console.log(JSON.stringify({ event: 'transaction_saved', type, mode: 'instant', guess: g.how }))
-  return showSaved(ctx, id, record, cats, history, g.how)
+  const limitText = await afterExpense(ctx, record, cats, limitsDoc).catch(() => '')
+  return showSaved(ctx, id, record, cats, history, g.how, limitText)
 }
 
-function showSaved(ctx, id, tx, cats, history, how) {
+function showSaved(ctx, id, tx, cats, history, how, extra = '') {
   const g = guessCategory({ type: tx.type, words: '', categories: cats, history })
   const cat = cats.find((c) => c.value === tx.category) || { ...categoryInfo(tx.category, tx.type, cats), value: tx.category }
   const alternatives = [cat, ...g.alternatives, g.category]
@@ -358,7 +361,7 @@ function showSaved(ctx, id, tx, cats, history, how) {
   const hint = how && how !== 'named' ? '\n<i>Not the right category? Tap one below.</i>' : ''
   return ctx.show(
     `✅ <b>Saved</b> ${TYPE_ICON[tx.type]} <b>${money(tx.amount, ctx.currency)}</b>\n` +
-    `${catEmoji(cat.icon)} ${esc(cat.label)}${tx.description ? ` · ${esc(tx.description)}` : ''} · ${when}${hint}`,
+    `${catEmoji(cat.icon)} ${esc(cat.label)}${tx.description ? ` · ${esc(tx.description)}` : ''} · ${when}${hint}${extra}`,
     kb.savedActions(id, alternatives, tx.date === ctx.today, tx.type)
   )
 }
@@ -502,10 +505,15 @@ async function confirmSave(ctx, nonce) {
   }
   ctx.session = null
   console.log(JSON.stringify({ event: 'transaction_saved', type: d.type }))
+  let limitText = ''
+  if (d.type === 'expense') {
+    const [limitsDoc, cats] = await Promise.all([ctx.data.spendingLimits(ctx.uid), ctx.data.categories(ctx.uid, 'expense')])
+    limitText = await afterExpense(ctx, record, cats, limitsDoc).catch(() => '')
+  }
   return ctx.show(
     `✅ <b>Saved</b> — ${TYPE_LABEL[d.type].toLowerCase()} of <b>${money(d.amount, ctx.currency)}</b>\n` +
     `${catEmoji(d.categoryIcon)} ${esc(d.categoryLabel)}${d.description ? ` · ${esc(d.description)}` : ''} · ${record.date === ctx.today ? 'today' : longDate(record.date)}\n` +
-    `<i>Already in your app.</i>`,
+    `<i>Already in your app.</i>${limitText}`,
     kb.afterSave(`tg_${nonce}`, d.type)
   )
 }
@@ -553,18 +561,23 @@ const DATE_RE = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/
 
 async function showDay(ctx, date) {
   if (!DATE_RE.test(date || '') || date > ctx.today) date = ctx.today // never the future
-  const [txs, cats] = await Promise.all([
+  const isToday = date === ctx.today
+  const [txs, cats, limitsDoc] = await Promise.all([
     ctx.data.transactionsBetween(ctx.uid, date, date),
     ctx.data.categories(ctx.uid),
+    isToday ? ctx.data.spendingLimits(ctx.uid) : null,
   ])
   const c = ctx.currency
   const t = totals(txs) // same rules as the app
   const yesterday = dayBefore(ctx.today)
-  const title = date === ctx.today ? 'Today' : date === yesterday ? 'Yesterday' : ''
+  const title = isToday ? 'Today' : date === yesterday ? 'Yesterday' : ''
   const header = `📅 <b>${title ? `${title} · ` : ''}${esc(kb.dayLabel(date))}</b>`
+  // "How much can I still spend today?" — only when daily limits are set
+  const limits = isToday && limitsDoc ? await limitLines(ctx, cats, ['day'], limitsDoc).catch(() => []) : []
+  const limitBlock = limits.length ? `\n\n🎯 <b>Daily limits</b>\n${limits.join('\n')}` : ''
 
   if (!txs.length) {
-    return ctx.show(`${header}\n\nNothing recorded on this day.`, kb.dayNav(date, ctx.today))
+    return ctx.show(`${header}\n\nNothing recorded on this day.${limitBlock}`, kb.dayNav(date, ctx.today))
   }
   const top = expenseByCategory(txs)[0]
   const topInfo = top ? categoryInfo(top.category, 'expense', cats) : null
@@ -577,7 +590,8 @@ async function showDay(ctx, date) {
     `= ${signedMoney(t.balance, c)} for the day\n` +
     (topInfo ? `🏆 Most on: ${catEmoji(topInfo.icon)} ${esc(topInfo.label)} · ${money(top.amount, c)}\n` : '') +
     `\n${rows.slice(0, 20).map((x) => txLine(x, cats, c)).join('\n')}` +
-    (rows.length > 20 ? `\n…and ${rows.length - 20} more` : ''),
+    (rows.length > 20 ? `\n…and ${rows.length - 20} more` : '') +
+    limitBlock,
     kb.dayNav(date, ctx.today)
   )
 }
@@ -648,14 +662,18 @@ async function showReport(ctx, mode, key) {
 async function showBudget(ctx, { only, remainingOnly } = {}) {
   const monthKey = ctx.today.slice(0, 7)
   const range = periodRange('month', Number(monthKey.slice(0, 4)), Number(monthKey.slice(5)) - 1)
-  const [budgets, txs, cats] = await Promise.all([
+  const [budgets, txs, cats, limitsDoc] = await Promise.all([
     ctx.data.budgets(ctx.uid),
     ctx.data.transactionsBetween(ctx.uid, range.start, range.end),
     ctx.data.categories(ctx.uid),
+    only ? null : ctx.data.spendingLimits(ctx.uid),
   ])
   const u = budgetUsage(budgets, monthKey, txs)
+  const limits = limitsDoc ? await limitLines(ctx, cats, ['day', 'week'], limitsDoc).catch(() => []) : []
+  const limitBlock = limits.length ? `🎯 <b>Daily & weekly limits</b>\n${limits.join('\n')}` : ''
   if (!u || (!u.total && !u.categories.length)) {
-    return ctx.show(`🎯 No budget set for ${esc(monthTitle(monthKey))}.\nSet one in the app: <b>More → Budgets</b>.`)
+    if (limitBlock) return ctx.show(`${limitBlock}\n\n<i>No monthly budget for ${esc(monthTitle(monthKey))} — set one in the app: More → Budgets.</i>`, kb.budgetActions())
+    return ctx.show(`🎯 No budget set for ${esc(monthTitle(monthKey))}.\nSet one in the app: <b>More → Budgets</b> (monthly, daily or weekly).`)
   }
   const c = ctx.currency
   const bar = (pct) => {
@@ -681,6 +699,7 @@ async function showBudget(ctx, { only, remainingOnly } = {}) {
   const parts = [`🎯 <b>Budget · ${esc(monthTitle(monthKey))}</b>`]
   if (u.total && !only) parts.push(block('Monthly total', u.total))
   rows.forEach((x) => parts.push(block(`${catEmoji(x.icon)} ${esc(x.label)}`, x)))
+  if (limitBlock) parts.push(limitBlock)
   return ctx.show(parts.join('\n\n'), kb.budgetActions())
 }
 
@@ -690,9 +709,10 @@ async function showSettings(ctx) {
   return ctx.show(
     `⚙️ <b>Settings</b>\n\nConnected as ${s.username ? '@' + esc(s.username) : esc(s.firstName || 'you')}\n` +
     `Currency: ${ctx.currency} · change it in the app\nTimezone: ${esc(s.timezone || ctx.env.DEFAULT_TIMEZONE || 'UTC')}\n\n` +
-    `<b>Adding:</b> ${on ? '✅ asks you to confirm first' : '⚡ saves instantly (with Undo)'}\n\n` +
+    `<b>Adding:</b> ${on ? '✅ asks you to confirm first' : '⚡ saves instantly (with Undo)'}\n` +
+    `<b>Limit alerts:</b> ${alertsOn(s) ? '🔔 on — at 80% and when you go over' : '🔕 off'}\n\n` +
     `To disconnect: /unlink, or in the app: Settings → Telegram bot.`,
-    kb.settingsActions(on)
+    kb.settingsActions(on, alertsOn(s))
   )
 }
 
@@ -770,6 +790,11 @@ async function handleCallback(cq, deps) {
       if (value !== 'on' && value !== 'off') return
       await ctx.data.patchTelegramSettings(ctx.uid, { confirmBeforeSave: value === 'on' })
       ctx.settings = { ...ctx.settings, confirmBeforeSave: value === 'on' }
+      return showSettings(ctx)
+    case 'lal': // limit alerts on / off
+      if (value !== 'on' && value !== 'off') return
+      await ctx.data.patchTelegramSettings(ctx.uid, { limitAlerts: value === 'on' })
+      ctx.settings = { ...ctx.settings, limitAlerts: value === 'on' }
       return showSettings(ctx)
     case 'cat': {
       const opt = s?.options?.[Number(value)]

@@ -186,9 +186,10 @@ export const recategorize = (txId, categories) => ({
   ],
 })
 
-export const settingsActions = (confirmOn) => ({
+export const settingsActions = (confirmOn, alertsOn = true) => ({
   inline_keyboard: [
     [btn(confirmOn ? '⚡ Save instantly (no confirm)' : '✅ Ask me to confirm first', `cfm:${confirmOn ? 'off' : 'on'}`)],
+    [btn(alertsOn ? '🔕 Turn off limit alerts' : '🔔 Turn on limit alerts', `lal:${alertsOn ? 'off' : 'on'}`)],
     [btn('◀️ More', 'm:more')],
   ],
 })
